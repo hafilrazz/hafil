@@ -89,6 +89,35 @@ def init_db() -> None:
             """
         )
 
+        # Private code rooms (one creator code; others join with it)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS private_rooms (
+                code TEXT PRIMARY KEY,
+                created_by TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS private_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT NOT NULL,
+                name TEXT NOT NULL,
+                body TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (code) REFERENCES private_rooms(code) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_private_msg_code_id
+            ON private_messages (code, id)
+            """
+        )
+
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     game = row["game"] if "game" in row.keys() else DEFAULT_GAME
@@ -311,3 +340,230 @@ def clear_chat_history() -> int:
         except Exception:
             pass
     return count
+
+
+# ---------------------------------------------------------------------------
+# Private code chat rooms
+# ---------------------------------------------------------------------------
+
+PRIVATE_CODE_LEN = 6
+_PRIVATE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def normalize_room_code(code: str | None) -> str:
+    raw = "".join(ch for ch in str(code or "").upper() if ch.isalnum())
+    if len(raw) < 4 or len(raw) > 12:
+        raise ValueError("Room code must be 4–12 characters")
+    return raw
+
+
+def _generate_room_code(conn: sqlite3.Connection) -> str:
+    import secrets
+
+    for _ in range(40):
+        code = "".join(secrets.choice(_PRIVATE_ALPHABET) for _ in range(PRIVATE_CODE_LEN))
+        exists = conn.execute(
+            "SELECT 1 FROM private_rooms WHERE code = ?", (code,)
+        ).fetchone()
+        if not exists:
+            return code
+    raise RuntimeError("Could not allocate a free room code")
+
+
+def create_private_room(created_by: str) -> dict[str, Any]:
+    """Create a private room; returns {code, created_by, created_at}."""
+    init_db()
+    owner = sanitize_name(created_by)
+    now = _utc_now()
+    with get_db() as conn:
+        code = _generate_room_code(conn)
+        conn.execute(
+            "INSERT INTO private_rooms (code, created_by, created_at) VALUES (?, ?, ?)",
+            (code, owner, now),
+        )
+    return {"code": code, "created_by": owner, "created_at": now}
+
+
+def private_room_exists(code: str) -> bool:
+    init_db()
+    try:
+        code = normalize_room_code(code)
+    except ValueError:
+        return False
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM private_rooms WHERE code = ?", (code,)
+        ).fetchone()
+    return row is not None
+
+
+def get_private_room(code: str) -> dict[str, Any] | None:
+    init_db()
+    code = normalize_room_code(code)
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT code, created_by, created_at FROM private_rooms WHERE code = ?",
+            (code,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "code": row["code"],
+        "created_by": row["created_by"],
+        "created_at": row["created_at"],
+    }
+
+
+def get_private_messages(
+    code: str, limit: int = CHAT_LIMIT, after_id: int = 0
+) -> list[dict[str, Any]]:
+    init_db()
+    code = normalize_room_code(code)
+    if not private_room_exists(code):
+        raise ValueError("Room not found — check the code")
+    limit = max(1, min(int(limit), 200))
+    with get_db() as conn:
+        if after_id > 0:
+            rows = conn.execute(
+                """
+                SELECT id, name, body, created_at
+                FROM private_messages
+                WHERE code = ? AND id > ?
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (code, after_id, limit),
+            ).fetchall()
+            return [_chat_row(r) for r in rows]
+
+        rows = conn.execute(
+            """
+            SELECT id, name, body, created_at
+            FROM private_messages
+            WHERE code = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (code, limit),
+        ).fetchall()
+    return [_chat_row(r) for r in reversed(rows)]
+
+
+def private_message_count(code: str) -> int:
+    init_db()
+    code = normalize_room_code(code)
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM private_messages WHERE code = ?",
+            (code,),
+        ).fetchone()
+        return int(row["n"])
+
+
+def add_private_message(code: str, name: str, body: str) -> dict[str, Any]:
+    init_db()
+    code = normalize_room_code(code)
+    if not private_room_exists(code):
+        raise ValueError("Room not found — check the code")
+
+    player = sanitize_name(name)
+    text = " ".join((body or "").strip().split())
+    text = "".join(ch for ch in text if ch.isprintable())
+    if not text:
+        raise ValueError("Message cannot be empty")
+    if len(text) > MAX_CHAT_LEN:
+        raise ValueError(f"Message too long (max {MAX_CHAT_LEN} characters)")
+
+    now = _utc_now()
+    with get_db() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO private_messages (code, name, body, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (code, player, text, now),
+        )
+        msg_id = cur.lastrowid
+        # Cap history per room
+        conn.execute(
+            """
+            DELETE FROM private_messages
+            WHERE code = ? AND id NOT IN (
+                SELECT id FROM (
+                    SELECT id FROM private_messages
+                    WHERE code = ?
+                    ORDER BY id DESC LIMIT 300
+                )
+            )
+            """,
+            (code, code),
+        )
+        row = conn.execute(
+            "SELECT id, name, body, created_at FROM private_messages WHERE id = ?",
+            (msg_id,),
+        ).fetchone()
+    if not row:
+        return {
+            "id": msg_id,
+            "name": player,
+            "body": text,
+            "time": now[11:16],
+            "date": now[:10],
+        }
+    return _chat_row(row)
+
+
+def clear_private_history(code: str) -> int:
+    """Wipe messages in one private room. Room code stays valid."""
+    init_db()
+    code = normalize_room_code(code)
+    if not private_room_exists(code):
+        raise ValueError("Room not found — check the code")
+    with get_db() as conn:
+        cur = conn.execute(
+            "SELECT COUNT(*) AS n FROM private_messages WHERE code = ?", (code,)
+        )
+        count = int(cur.fetchone()["n"])
+        conn.execute("DELETE FROM private_messages WHERE code = ?", (code,))
+    return count
+
+
+def add_private_leave_notice(code: str, player_name: str) -> dict[str, Any]:
+    """Post a system line: \"{name} left chat\" into the private room."""
+    init_db()
+    code = normalize_room_code(code)
+    if not private_room_exists(code):
+        raise ValueError("Room not found — check the code")
+
+    player = sanitize_name(player_name)
+    body = f"{player} left chat"
+    now = _utc_now()
+    with get_db() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO private_messages (code, name, body, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (code, "System", body, now),
+        )
+        msg_id = cur.lastrowid
+        row = conn.execute(
+            "SELECT id, name, body, created_at FROM private_messages WHERE id = ?",
+            (msg_id,),
+        ).fetchone()
+    if not row:
+        return {
+            "id": msg_id,
+            "name": "System",
+            "body": body,
+            "time": now[11:16],
+            "date": now[:10],
+            "system": True,
+        }
+    msg = _chat_row(row)
+    msg["system"] = True
+    return msg

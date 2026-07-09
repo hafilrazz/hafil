@@ -1759,7 +1759,87 @@ canvas {
 .medal-2 { color: var(--silver); text-shadow: 0 0 10px rgba(200, 208, 216, 0.35); }
 .medal-3 { color: var(--bronze); text-shadow: 0 0 10px rgba(205, 127, 50, 0.4); }
 
-/* ========== Public chat ========== */
+/* ========== Public / private chat ========== */
+.chat-mode-tabs {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem 0;
+}
+
+.chat-mode-tab {
+  flex: 1;
+  min-height: 2.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 159, 0.28);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-faint);
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chat-mode-tab:hover {
+  color: var(--neon);
+  border-color: rgba(0, 255, 159, 0.5);
+}
+
+.chat-mode-tab.is-active {
+  color: #04140e;
+  background: var(--neon);
+  border-color: var(--neon);
+  box-shadow: 0 0 16px rgba(0, 255, 159, 0.35);
+}
+
+.private-actions {
+  display: flex;
+  justify-content: center;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.private-actions .game-btn {
+  min-width: 10rem;
+}
+
+.private-or {
+  margin-top: 0.85rem !important;
+  opacity: 0.85;
+}
+
+.private-join-row {
+  margin-top: 0.35rem;
+}
+
+.private-code-input {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  text-align: center;
+  font-family: var(--font-display) !important;
+  font-size: 0.85rem !important;
+}
+
+.private-who {
+  gap: 0.45rem;
+}
+
+.private-code-badge {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  background: rgba(0, 229, 255, 0.1);
+  color: var(--cyan);
+  margin-left: auto;
+}
+
+.private-code-badge span {
+  color: #fff;
+  letter-spacing: 0.16em;
+}
+
 .chat-shell {
   max-width: 42rem;
   margin: 0 auto;
@@ -2081,6 +2161,24 @@ canvas {
   background: linear-gradient(135deg, rgba(0, 255, 159, 0.16), rgba(0, 229, 255, 0.06));
   border-color: rgba(0, 255, 159, 0.35);
   box-shadow: 0 0 18px rgba(0, 255, 159, 0.08);
+}
+
+.chat-msg--system {
+  align-self: center;
+  max-width: 95%;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px dashed rgba(0, 229, 255, 0.35);
+  background: rgba(0, 229, 255, 0.06);
+  box-shadow: none;
+  text-align: center;
+}
+
+.chat-msg--system .chat-msg-body {
+  color: var(--cyan);
+  font-size: 0.78rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
 }
 
 @keyframes chatPop {

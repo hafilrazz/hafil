@@ -284,6 +284,157 @@ def chat_clear():
     return jsonify({"ok": True, "deleted": deleted, "total": 0})
 
 
+# ---------------------------------------------------------------------------
+# Private chat rooms (code-gated)
+# ---------------------------------------------------------------------------
+
+def _ensure_chat_db() -> None:
+    try:
+        db.init_db()
+    except Exception:
+        pass
+
+
+@app.post("/api/chat/private/create")
+def private_chat_create():
+    """Host creates a private room and receives a shareable code."""
+    _ensure_chat_db()
+    payload = request.get_json(silent=True) or {}
+    name = payload.get("name") or payload.get("created_by") or ""
+    try:
+        room = db.create_private_room(str(name))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"Could not create room: {exc}"}), 500
+    return jsonify({"ok": True, "room": room, "code": room["code"]}), 201
+
+
+@app.post("/api/chat/private/join")
+def private_chat_join():
+    """Validate a room code before entering the private channel."""
+    _ensure_chat_db()
+    payload = request.get_json(silent=True) or {}
+    code = payload.get("code") or ""
+    name = payload.get("name") or ""
+    try:
+        # name is optional for join validation, but we sanitize if present
+        if name:
+            db.sanitize_name(str(name))
+        room = db.get_private_room(str(code))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not room:
+        return jsonify({"error": "Invalid code — room not found"}), 404
+    return jsonify({"ok": True, "room": room, "code": room["code"]})
+
+
+@app.get("/api/chat/private")
+def private_chat_list():
+    _ensure_chat_db()
+    code = request.args.get("code") or ""
+    try:
+        after = int(request.args.get("after", 0))
+    except (TypeError, ValueError):
+        after = 0
+    try:
+        messages = db.get_private_messages(str(code), after_id=after)
+        total = db.private_message_count(str(code))
+        room = db.get_private_room(str(code))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not room:
+        return jsonify({"error": "Invalid code — room not found"}), 404
+    return jsonify({
+        "messages": messages,
+        "total": total,
+        "code": room["code"],
+        "room": room,
+    })
+
+
+@app.post("/api/chat/private")
+def private_chat_post():
+    _ensure_chat_db()
+    payload = request.get_json(silent=True) or {}
+    code = payload.get("code") or ""
+    name = payload.get("name") or ""
+    body = payload.get("body") or payload.get("message") or ""
+
+    # Wipe this room only if someone sends "clear"
+    if str(body).strip().lower() == "clear":
+        try:
+            deleted = db.clear_private_history(str(code))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        try:
+            socketio.emit(
+                "chat:private_cleared",
+                {"ok": True, "deleted": deleted, "code": str(code).upper()},
+            )
+        except Exception:
+            pass
+        return jsonify({"ok": True, "cleared": True, "deleted": deleted, "total": 0})
+
+    try:
+        msg = db.add_private_message(str(code), str(name), str(body))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    try:
+        socketio.emit(
+            "chat:private_message",
+            {"message": msg, "code": str(code).upper()},
+        )
+    except Exception:
+        pass
+    return jsonify({"ok": True, "message": msg}), 201
+
+
+@app.post("/api/chat/private/clear")
+def private_chat_clear():
+    """Wipe one private room. Body: { code, confirm: \"clear\" }."""
+    _ensure_chat_db()
+    payload = request.get_json(silent=True) or {}
+    code = payload.get("code") or ""
+    confirm = str(payload.get("confirm") or payload.get("text") or "").strip().lower()
+    if confirm != "clear":
+        return jsonify({"error": 'Type "clear" exactly to wipe this room'}), 400
+    try:
+        deleted = db.clear_private_history(str(code))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    try:
+        socketio.emit(
+            "chat:private_cleared",
+            {"ok": True, "deleted": deleted, "code": str(code).upper()},
+        )
+    except Exception:
+        pass
+    return jsonify({"ok": True, "deleted": deleted, "total": 0})
+
+
+@app.post("/api/chat/private/leave")
+def private_chat_leave():
+    """Announce that a player left the private room."""
+    _ensure_chat_db()
+    payload = request.get_json(silent=True) or {}
+    code = payload.get("code") or ""
+    name = payload.get("name") or ""
+    try:
+        msg = db.add_private_leave_notice(str(code), str(name))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    try:
+        socketio.emit(
+            "chat:private_message",
+            {"message": msg, "code": str(code).upper()},
+        )
+    except Exception:
+        pass
+    return jsonify({"ok": True, "message": msg})
+
+
 @app.errorhandler(404)
 def not_found(_err):
     if request.path.startswith("/api/"):

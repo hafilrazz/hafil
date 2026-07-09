@@ -15,13 +15,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.socket.io">
-  <link rel="preload" href="/static/css/styles.css?v=chat5" as="style">
+  <link rel="preload" href="/static/css/styles.css?v=chat7" as="style">
   <link rel="modulepreload" href="/static/js/main.js">
   <link rel="modulepreload" href="/static/js/gate.js">
   <!-- Fonts: display=swap, async so text isn't blocked -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/static/css/styles.css?v=chat5">
+  <link rel="stylesheet" href="/static/css/styles.css?v=chat7">
   <!-- Tiny critical styles so first paint isn't blank before CSS -->
   <style>
     html{background:#050608;color:#00ff9f}
@@ -414,55 +414,116 @@
       <div class="shell">
         <p class="section-kicker" style="text-align:center">05 // LOUNGE</p>
         <h2 class="section-title neon-text" style="text-align:center">GLOBAL CHAT</h2>
-        <p class="section-sub" style="text-align:center">Open lounge for everyone on the site. Pick a name and talk.</p>
+        <p class="section-sub" style="text-align:center">Public lounge for everyone — or open a private room with a secret code.</p>
         <hr class="hr-neon">
 
         <div class="panel chat-panel chat-shell">
           <div class="chat-shell-bar">
             <span class="chat-shell-dot"></span>
-            <span class="chat-shell-title">// PUBLIC CHANNEL</span>
+            <span class="chat-shell-title" id="chatShellTitle">// PUBLIC CHANNEL</span>
             <span class="chat-shell-live" id="chatLiveBadge">STANDBY</span>
           </div>
 
-          <div id="chatNameGate" class="chat-name-gate">
-            <div class="chat-avatar" aria-hidden="true">💬</div>
-            <p class="chat-label">ENTER DISPLAY NAME</p>
-            <div class="chat-name-row">
-              <input id="chatNameInput" class="cyber-input" type="text" maxlength="16" placeholder="Your name" autocomplete="nickname" enterkeyhint="go">
-              <button type="button" id="chatNameBtn" class="game-btn game-btn--solid chat-join-btn"
-                      onclick="event.preventDefault(); if(window.joinGlobalChat){window.joinGlobalChat();}else if(window.initChat){window.initChat();window.joinGlobalChat&&window.joinGlobalChat();}else{document.getElementById('chatStatus').textContent='Chat script missing — hard refresh (Ctrl+F5)';}">
-                JOIN CHAT
-              </button>
-            </div>
-            <p class="chat-hint">Visible to every visitor. No passwords or room codes.</p>
+          <div class="chat-mode-tabs" role="tablist" aria-label="Chat channel">
+            <button type="button" id="chatModePublic" class="chat-mode-tab is-active" role="tab" aria-selected="true">PUBLIC</button>
+            <button type="button" id="chatModePrivate" class="chat-mode-tab" role="tab" aria-selected="false">PRIVATE</button>
           </div>
 
-          <div id="chatMain" class="chat-main" style="display:none" hidden>
-            <div class="chat-who">
-              <span class="chat-who-pill">YOU</span>
-              <strong id="chatDisplayName">—</strong>
-              <button type="button" id="chatChangeName" class="game-btn game-btn--ghost chat-change-btn">CHANGE NAME</button>
-            </div>
-            <div id="chatLog" class="chat-log" aria-live="polite"></div>
-            <form id="chatForm" class="chat-form" autocomplete="off">
-              <input id="chatMessageInput" class="cyber-input" type="text" maxlength="280" placeholder="Write a message…" enterkeyhint="send">
-              <button type="submit" id="chatSendBtn" class="game-btn game-btn--solid">SEND</button>
-            </form>
-
-            <div class="chat-clear-box">
-              <p class="chat-clear-title">CLEAR HISTORY</p>
-              <p class="chat-clear-hint">Type <strong>clear</strong> here (or as a chat message) and press Wipe to delete every message for everyone.</p>
-              <div class="chat-clear-row">
-                <input id="chatClearInput" class="cyber-input chat-clear-input" type="text" maxlength="16" placeholder='type "clear"' autocomplete="off" spellcheck="false">
-                <button type="button" id="chatClearBtn" class="game-btn chat-wipe-btn"
-                        onclick="event.preventDefault(); if(window.clearGlobalChat){window.clearGlobalChat();}else{document.getElementById('chatStatus').textContent='Chat script missing — hard refresh (Ctrl+F5)';}">
-                  WIPE
+          <!-- PUBLIC -->
+          <div id="chatPublicPane">
+            <div id="chatNameGate" class="chat-name-gate">
+              <div class="chat-avatar" aria-hidden="true">💬</div>
+              <p class="chat-label">ENTER DISPLAY NAME</p>
+              <div class="chat-name-row">
+                <input id="chatNameInput" class="cyber-input" type="text" maxlength="16" placeholder="Your name" autocomplete="nickname" enterkeyhint="go">
+                <button type="button" id="chatNameBtn" class="game-btn game-btn--solid chat-join-btn"
+                        onclick="event.preventDefault(); if(window.joinGlobalChat){window.joinGlobalChat();}else if(window.initChat){window.initChat();window.joinGlobalChat&&window.joinGlobalChat();}">
+                  JOIN CHAT
                 </button>
+              </div>
+              <p class="chat-hint">Visible to every visitor. No passwords or room codes.</p>
+            </div>
+
+            <div id="chatMain" class="chat-main" style="display:none" hidden>
+              <div class="chat-who">
+                <span class="chat-who-pill">YOU</span>
+                <strong id="chatDisplayName">—</strong>
+                <button type="button" id="chatChangeName" class="game-btn game-btn--ghost chat-change-btn">CHANGE NAME</button>
+              </div>
+              <div id="chatLog" class="chat-log" aria-live="polite"></div>
+              <form id="chatForm" class="chat-form" autocomplete="off">
+                <input id="chatMessageInput" class="cyber-input" type="text" maxlength="280" placeholder="Write a message…" enterkeyhint="send">
+                <button type="submit" id="chatSendBtn" class="game-btn game-btn--solid">SEND</button>
+              </form>
+
+              <div class="chat-clear-box">
+                <p class="chat-clear-title">CLEAR HISTORY</p>
+                <p class="chat-clear-hint">Type <strong>clear</strong> here (or as a chat message) and press Wipe to delete every public message.</p>
+                <div class="chat-clear-row">
+                  <input id="chatClearInput" class="cyber-input chat-clear-input" type="text" maxlength="16" placeholder='type "clear"' autocomplete="off" spellcheck="false">
+                  <button type="button" id="chatClearBtn" class="game-btn chat-wipe-btn"
+                          onclick="event.preventDefault(); if(window.clearGlobalChat){window.clearGlobalChat();}">
+                    WIPE
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          <p id="chatStatus" class="chat-status">Enter your name, then press JOIN CHAT.</p>
+          <!-- PRIVATE -->
+          <div id="chatPrivatePane" hidden style="display:none">
+            <div id="privateGate" class="chat-name-gate">
+              <div class="chat-avatar" aria-hidden="true">🔒</div>
+              <p class="chat-label">PRIVATE CHANNEL</p>
+              <div class="chat-name-row">
+                <input id="privateNameInput" class="cyber-input" type="text" maxlength="16" placeholder="Your name" autocomplete="nickname">
+              </div>
+              <div class="private-actions">
+                <button type="button" id="privateCreateBtn" class="game-btn game-btn--solid"
+                        onclick="event.preventDefault(); if(window.createPrivateChat){window.createPrivateChat();}">
+                  CREATE ROOM
+                </button>
+              </div>
+              <p class="chat-hint private-or">— or join with a code —</p>
+              <div class="chat-name-row private-join-row">
+                <input id="privateCodeInput" class="cyber-input private-code-input" type="text" maxlength="12" placeholder="ROOM CODE" autocomplete="off" spellcheck="false" autocapitalize="characters">
+                <button type="button" id="privateJoinBtn" class="game-btn game-btn--ghost"
+                        onclick="event.preventDefault(); if(window.joinPrivateChat){window.joinPrivateChat();}">
+                  JOIN
+                </button>
+              </div>
+              <p class="chat-hint">Only people with the code can see this room.</p>
+            </div>
+
+            <div id="privateMain" class="chat-main" style="display:none" hidden>
+              <div class="chat-who private-who">
+                <span class="chat-who-pill">PRIVATE</span>
+                <strong id="privateDisplayName">—</strong>
+                <span class="private-code-badge" title="Share this code">CODE <span id="privateCodeLabel">———</span></span>
+                <button type="button" id="privateCopyBtn" class="game-btn game-btn--ghost chat-change-btn">COPY CODE</button>
+                <button type="button" id="privateLeaveBtn" class="game-btn game-btn--ghost chat-change-btn">LEAVE</button>
+              </div>
+              <div id="privateLog" class="chat-log" aria-live="polite"></div>
+              <form id="privateForm" class="chat-form" autocomplete="off">
+                <input id="privateMessageInput" class="cyber-input" type="text" maxlength="280" placeholder="Private message…" enterkeyhint="send">
+                <button type="submit" id="privateSendBtn" class="game-btn game-btn--solid">SEND</button>
+              </form>
+
+              <div class="chat-clear-box">
+                <p class="chat-clear-title">CLEAR THIS ROOM</p>
+                <p class="chat-clear-hint">Type <strong>clear</strong> and Wipe to delete messages in <em>this</em> private room only.</p>
+                <div class="chat-clear-row">
+                  <input id="privateClearInput" class="cyber-input chat-clear-input" type="text" maxlength="16" placeholder='type "clear"' autocomplete="off" spellcheck="false">
+                  <button type="button" id="privateClearBtn" class="game-btn chat-wipe-btn"
+                          onclick="event.preventDefault(); if(window.clearPrivateChat){window.clearPrivateChat();}">
+                    WIPE
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p id="chatStatus" class="chat-status">Pick PUBLIC or PRIVATE, then enter your name.</p>
         </div>
       </div>
     </section>
@@ -499,7 +560,7 @@
   </div>
 
   <!-- Chat first as classic script — attaches window.joinGlobalChat / clearGlobalChat immediately -->
-  <script src="/static/js/chat.js?v=chat4"></script>
-  <script type="module" src="/static/js/main.js?v=chat4"></script>
+  <script src="/static/js/chat.js?v=chat7"></script>
+  <script type="module" src="/static/js/main.js?v=chat7"></script>
 </body>
 </html>
