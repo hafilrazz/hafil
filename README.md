@@ -1,8 +1,27 @@
-# HAFIL RAZAK — Portfolio + Retro Arcade
+# portfolio
 
-Cyberpunk portfolio with mini-games, SQLite leaderboards, and multiplayer chess.
+my personal site. cyberpunk vibe, a few mini games, multiplayer chess, and a leaderboard that actually saves scores.
 
-## Local run
+live demo depends on where you host it (see deploy notes at the bottom).
+
+---
+
+## whats in here
+
+- about / skills / projects / contact
+- arcade games:
+  - neon snake
+  - cyber pong
+  - brick breaker
+  - star blaster
+- cyber chess (create a room, share the code, play a friend)
+- top 10 scores per game stored in sqlite
+
+---
+
+## run it locally
+
+you need python 3 installed.
 
 ```powershell
 cd D:\hafil
@@ -12,50 +31,96 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open **http://127.0.0.1:5000**
+then open:
 
-## Deploy (GitHub + Render)
+http://127.0.0.1:5000
 
-**GitHub Pages cannot run this app** (needs Python + WebSockets).
+dont just double click the html file. the games, leaderboard and chess need the server running.
 
-Full correct steps → **[DEPLOY.md](./DEPLOY.md)**
+phone on same wifi: use your pc ip instead of 127.0.0.1, something like `http://192.168.x.x:5000`
 
-Short version:
+---
 
-1. Push this folder to a **GitHub** repo  
-2. On **[Render](https://render.com)** create a **Web Service** from that repo  
-3. **Build:** `pip install -r requirements.txt`  
-4. **Start:** `gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app`  
-5. Env: `SECRET_KEY` (random), `FLASK_ENV=production`  
-6. Use the Render URL as your live site  
-
-## Arcade
-
-| Game | Notes |
-|------|--------|
-| Neon Snake | Top-10 DB board |
-| Cyber Pong | First to 7 |
-| Brick Breaker | Lives + levels |
-| Star Blaster | Shoot invaders |
-| Cyber Chess | Multiplayer room codes |
-
-## Project layout
+## project structure
 
 ```
-app.py              Flask + Socket.IO
-db.py               SQLite leaderboards
-chess_rooms.py      Chess rooms + rules
+app.py            flask + socketio
+db.py             sqlite leaderboard
+chess_rooms.py    chess rooms / rules
+static/           frontend stuff
 requirements.txt
-Procfile            Render/Heroku start command
-render.yaml         Optional Render blueprint
-DEPLOY.md           Deployment guide
-static/             Frontend
+DEPLOY.md         longer deploy writeup if you need it
 ```
 
-## API
+---
 
-- `GET /api/health`
-- `GET /api/scores?game=snake`
-- `POST /api/scores` → `{ "name", "score", "game" }`
+## games real quick
 
-Games: `snake`, `pong`, `breakout`, `shooter`
+| game | notes |
+|------|--------|
+| snake | classic. scores go to db |
+| pong | vs cpu, first to 7 |
+| breakout | break bricks, levels |
+| star blaster | shoot stuff, 3 lives |
+| chess | multiplayer with room codes |
+
+chess rules are checked on the server (python-chess), not just in the browser.
+
+---
+
+## leaderboard api
+
+if you care:
+
+```
+GET  /api/health
+GET  /api/scores?game=snake
+POST /api/scores
+     body: { "name": "you", "score": 120, "game": "snake" }
+```
+
+game ids: `snake`, `pong`, `breakout`, `shooter`
+
+---
+
+## chess
+
+1. both people open the same site url
+2. one person hits create room
+3. other person types the code and joins
+4. white moves first
+5. tap piece then square on mobile
+
+draw / resign / rematch are there too.
+
+---
+
+## deploy
+
+1. push this repo to github
+2. make a free web service on [render.com](https://render.com) from that repo
+3. build command:
+   ```
+   pip install -r requirements.txt
+   ```
+4. start command:
+   ```
+   gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app
+   ```
+5. env vars:
+   - `SECRET_KEY` = random long string
+   - `FLASK_ENV` = `production`
+
+more detail in `DEPLOY.md`.
+
+note: free render sleeps when idle so first load can be slow. sqlite scores might reset on redeploy on free tier. good enough for a portfolio.
+
+---
+
+## stack
+
+python, flask, flask-socketio, sqlite, plain html/css/js. no fancy frontend framework on purpose.
+
+---
+
+if something breaks open an issue or just fix it and pr, whatever.
