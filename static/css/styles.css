@@ -1913,8 +1913,7 @@ canvas {
 
 @media (max-width: 520px) {
   .chat-name-row,
-  .chat-clear-row,
-  .chat-form {
+  .chat-clear-row {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1922,11 +1921,46 @@ canvas {
   .chat-name-row .chat-join-btn,
   .chat-name-row .game-btn,
   .chat-clear-row .cyber-input,
-  .chat-clear-row .game-btn,
-  .chat-form .cyber-input,
-  .chat-form .game-btn {
+  .chat-clear-row .game-btn {
     width: 100% !important;
     max-width: none !important;
+  }
+
+  /* Message row: keep input + SEND side-by-side and compact */
+  .chat-form {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .chat-form .cyber-input,
+  #chatMessageInput {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0.5rem 0.85rem !important;
+    font-size: 16px !important; /* avoids iOS zoom, still compact via padding */
+    min-height: 2.4rem;
+    line-height: 1.2;
+  }
+  .chat-form .game-btn,
+  #chatSendBtn {
+    width: auto !important;
+    min-width: 4.25rem !important;
+    flex: 0 0 auto !important;
+    padding: 0.5rem 0.75rem !important;
+    min-height: 2.4rem;
+    font-size: 0.62rem;
+  }
+
+  .chat-shell .chat-name-gate,
+  .chat-shell .chat-main {
+    padding: 1rem 0.85rem 0.2rem;
+  }
+
+  .chat-log {
+    height: min(300px, 42vh);
   }
 }
 
@@ -2090,18 +2124,26 @@ canvas {
   display: flex;
   gap: 0.55rem;
   margin-top: 0.85rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
-.chat-form .cyber-input {
-  flex: 1 1 12rem;
+.chat-form .cyber-input,
+#chatMessageInput {
+  flex: 1 1 auto;
   min-width: 0;
+  width: auto;
   border-radius: 999px;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
 }
 
-.chat-form .game-btn {
+.chat-form .game-btn,
+#chatSendBtn {
   border-radius: 999px;
-  min-width: 5.5rem;
+  min-width: 5rem;
+  flex: 0 0 auto;
+  width: auto;
 }
 
 .chat-clear-box {
