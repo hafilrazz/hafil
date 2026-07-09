@@ -1996,6 +1996,7 @@ canvas {
   .chat-clear-row {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.4rem;
   }
   .chat-name-row .cyber-input,
   .chat-name-row .chat-join-btn,
@@ -2003,7 +2004,82 @@ canvas {
   .chat-clear-row .cyber-input,
   .chat-clear-row .game-btn {
     width: 100% !important;
-    max-width: none !important;
+    max-width: 100% !important;
+  }
+
+  /* Compact name / code fields on mobile (public + private gates) */
+  .chat-name-gate .cyber-input,
+  #chatNameInput,
+  #privateNameInput,
+  #privateCodeInput,
+  .private-code-input {
+    padding: 0.45rem 0.75rem !important;
+    font-size: 16px !important; /* iOS: avoid focus zoom */
+    min-height: 2.35rem !important;
+    max-height: 2.5rem;
+    line-height: 1.2 !important;
+    box-sizing: border-box;
+  }
+
+  .private-code-input,
+  #privateCodeInput {
+    letter-spacing: 0.12em !important;
+    font-size: 15px !important;
+  }
+
+  .chat-name-gate .game-btn,
+  .chat-name-row .game-btn,
+  .private-actions .game-btn,
+  #chatNameBtn,
+  #privateCreateBtn,
+  #privateJoinBtn {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 2.35rem !important;
+    max-height: 2.6rem;
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.58rem !important;
+    letter-spacing: 0.1em;
+  }
+
+  .chat-join-btn {
+    min-height: 2.35rem !important;
+  }
+
+  .chat-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.15rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .chat-label {
+    font-size: 0.62rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .chat-hint {
+    margin-top: 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .private-actions {
+    margin: 0.5rem 0 0.2rem;
+  }
+
+  .private-or {
+    margin-top: 0.55rem !important;
+  }
+
+  .chat-mode-tabs {
+    padding: 0.5rem 0.75rem 0;
+    gap: 0.3rem;
+  }
+
+  .chat-mode-tab {
+    min-height: 2rem;
+    font-size: 0.56rem;
   }
 
   /* Message row: keep input + SEND side-by-side and compact */
@@ -2014,33 +2090,58 @@ canvas {
     gap: 0.4rem;
   }
   .chat-form .cyber-input,
-  #chatMessageInput {
+  #chatMessageInput,
+  #privateMessageInput {
     flex: 1 1 auto !important;
     width: auto !important;
     min-width: 0 !important;
     max-width: none !important;
-    padding: 0.5rem 0.85rem !important;
-    font-size: 16px !important; /* avoids iOS zoom, still compact via padding */
-    min-height: 2.4rem;
+    max-height: none;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 16px !important;
+    min-height: 2.35rem !important;
     line-height: 1.2;
   }
   .chat-form .game-btn,
-  #chatSendBtn {
+  #chatSendBtn,
+  #privateSendBtn {
     width: auto !important;
     min-width: 4.25rem !important;
+    max-height: none;
     flex: 0 0 auto !important;
-    padding: 0.5rem 0.75rem !important;
-    min-height: 2.4rem;
-    font-size: 0.62rem;
+    padding: 0.45rem 0.7rem !important;
+    min-height: 2.35rem !important;
+    font-size: 0.58rem;
   }
 
   .chat-shell .chat-name-gate,
   .chat-shell .chat-main {
-    padding: 1rem 0.85rem 0.2rem;
+    padding: 0.75rem 0.75rem 0.15rem;
   }
 
   .chat-log {
-    height: min(300px, 42vh);
+    height: min(280px, 40vh);
+  }
+
+  .chat-clear-box {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.7rem;
+  }
+
+  .chat-clear-row .cyber-input,
+  #chatClearInput,
+  #privateClearInput {
+    padding: 0.4rem 0.7rem !important;
+    font-size: 16px !important;
+    min-height: 2.25rem !important;
+  }
+
+  .chat-clear-row .game-btn,
+  #chatClearBtn,
+  #privateClearBtn {
+    min-height: 2.25rem !important;
+    padding: 0.4rem 0.7rem !important;
+    font-size: 0.58rem !important;
   }
 }
 
