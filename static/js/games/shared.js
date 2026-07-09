@@ -11,7 +11,7 @@ export function clamp(v, min, max) {
 }
 
 /** Simple object pool for particles */
-export function createParticlePool(max = 80) {
+export function createParticlePool(max = 32) {
   const pool = [];
   const active = [];
 

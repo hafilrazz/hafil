@@ -90,7 +90,6 @@ export const chessGame = {
   id: "chess",
   name: "Cyber Chess",
   controls: "Tap piece → tap square · create/join room to play a friend",
-  mobileLayout: "none",
   leaderboard: false,
   kind: "chess",
 

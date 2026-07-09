@@ -10,8 +10,7 @@ const HIGH_KEY = "shooterHighScore";
 export const shooterGame = {
   id: "shooter",
   name: "Star Blaster",
-  controls: "←/→ move · Space / Action fire · dodge enemies",
-  mobileLayout: "horizontal",
+  controls: "Drag left/right · tap to fire · Pause / Restart",
   leaderboard: true,
 
   create(api) {
@@ -120,24 +119,16 @@ export const shooterGame = {
         ctx.fillRect(0, 0, W, H);
       }
 
-      // bullets
-      ctx.shadowColor = "#00ff9f";
-      ctx.shadowBlur = 8;
       ctx.fillStyle = "#00ff9f";
       for (const b of bullets) {
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.shadowBlur = 0;
 
-      // enemies
       for (const e of enemies) {
-        ctx.shadowColor = e.hue;
-        ctx.shadowBlur = 10;
         ctx.fillStyle = e.hue;
         ctx.fillRect(e.x - e.w / 2, e.y - e.h / 2, e.w, e.h);
-        ctx.shadowBlur = 0;
         ctx.fillStyle = "rgba(255,255,255,0.25)";
         ctx.fillRect(e.x - e.w / 2 + 2, e.y - e.h / 2 + 2, e.w * 0.35, e.h * 0.35);
         if (e.hp > 1) {
@@ -147,11 +138,8 @@ export const shooterGame = {
         }
       }
 
-      // ship
       ctx.save();
       ctx.translate(ship.x, ship.y);
-      ctx.shadowColor = "#00ff9f";
-      ctx.shadowBlur = 12;
       ctx.fillStyle = "#00ff9f";
       ctx.beginPath();
       ctx.moveTo(0, -ship.h);
@@ -160,7 +148,6 @@ export const shooterGame = {
       ctx.lineTo(-ship.w / 2, ship.h / 2);
       ctx.closePath();
       ctx.fill();
-      ctx.shadowBlur = 0;
       ctx.fillStyle = "#fff";
       ctx.fillRect(-2, -4, 4, 6);
       // thruster

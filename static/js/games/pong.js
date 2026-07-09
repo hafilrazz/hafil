@@ -10,8 +10,7 @@ const HIGH_KEY = "pongHighScore";
 export const pongGame = {
   id: "pong",
   name: "Cyber Pong",
-  controls: "Drag on canvas · Up/Down pad · Action to pause",
-  mobileLayout: "vertical",
+  controls: "Drag finger up/down on board · Pause / Restart buttons",
   leaderboard: true,
 
   create(api) {
@@ -92,23 +91,15 @@ export const pongGame = {
         ctx.fillRect(0, 0, W, H);
       }
 
-      // paddles
-      ctx.shadowColor = "#00ff9f";
-      ctx.shadowBlur = 10;
       ctx.fillStyle = "#00ff9f";
       ctx.fillRect(18, playerY, paddleW, paddleH);
       ctx.fillStyle = "#00e5ff";
       ctx.fillRect(W - 18 - paddleW, cpuY, paddleW, paddleH);
-      ctx.shadowBlur = 0;
 
-      // ball
-      ctx.shadowColor = "#ff2bd6";
-      ctx.shadowBlur = 14;
       ctx.fillStyle = "#ff2bd6";
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
 
       // scores on court
       ctx.font = "600 28px Orbitron, monospace";

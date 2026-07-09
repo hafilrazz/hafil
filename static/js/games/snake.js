@@ -20,8 +20,7 @@ const HIGH_KEY = "snakeHighScore";
 export const snakeGame = {
   id: "snake",
   name: "Neon Snake",
-  controls: "Swipe / on-screen D-pad · tap Action to pause",
-  mobileLayout: "dpad",
+  controls: "Swipe on board to turn · Pause / Restart buttons · keyboard WASD",
   leaderboard: true,
 
   create(api) {
@@ -46,7 +45,6 @@ export const snakeGame = {
     let animT = 1; // 0..1 between cells
     let flash = 0;
     let foodPulse = 0;
-    let trail = [];
     let active = false;
     let touchStart = { x: 0, y: 0 };
     let keyHandler = null;
@@ -98,12 +96,6 @@ export const snakeGame = {
       }
 
       snake.unshift(head);
-      trail.push({
-        x: head.x * tile + tile / 2,
-        y: head.y * tile + tile / 2,
-        life: 12,
-      });
-      if (trail.length > 24) trail.shift();
       // Soft step every other cell so it doesn't drown the eat SFX
       if (snake.length % 2 === 0) sfx.move();
 
@@ -178,59 +170,31 @@ export const snakeGame = {
       ctx.fillRect(0, 0, W, H);
       ctx.drawImage(gridCache, 0, 0);
 
-      // scan line sweep (cheap)
-      const sweepY = ((ts * 0.06) % (H + 40)) - 20;
-      ctx.fillStyle = "rgba(0,255,159,0.04)";
-      ctx.fillRect(0, sweepY, W, 18);
-
-      // death / eat flash
       if (flash > 0) {
-        ctx.fillStyle = `rgba(255,80,120,${flash * 0.25})`;
+        ctx.fillStyle = `rgba(255,80,120,${flash * 0.2})`;
         ctx.fillRect(0, 0, W, H);
       }
 
-      // trail
-      for (let i = 0; i < trail.length; i++) {
-        const tr = trail[i];
-        ctx.globalAlpha = (tr.life / 12) * 0.35;
-        ctx.fillStyle = "#00ff9f";
-        ctx.beginPath();
-        ctx.arc(tr.x, tr.y, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-
       const t = Math.min(1, animT);
 
-      // body (back to front)
+      // body (no blur/glow — blur kills mobile FPS)
       for (let i = snake.length - 1; i >= 1; i--) {
         const p = segPos(i, t);
-        const alpha = 0.35 + (1 - i / snake.length) * 0.55;
-        const shrink = 1 - (i / snake.length) * 0.2;
-        const s = (tile - 4) * shrink;
-        const px = p.x * tile + (tile - s) / 2;
-        const py = p.y * tile + (tile - s) / 2;
+        const alpha = 0.4 + (1 - i / snake.length) * 0.5;
+        const s = tile - 4;
         ctx.fillStyle = `rgba(0, 255, 159, ${alpha})`;
-        ctx.fillRect(px, py, s, s);
-        // inner highlight
-        ctx.fillStyle = `rgba(200, 255, 230, ${alpha * 0.25})`;
-        ctx.fillRect(px + 2, py + 2, s * 0.35, s * 0.35);
+        ctx.fillRect(p.x * tile + 2, p.y * tile + 2, s, s);
       }
 
-      // head
       const head = segPos(0, t);
       const hx = head.x * tile + 1;
       const hy = head.y * tile + 1;
       const hs = tile - 2;
       ctx.fillStyle = "#00ff9f";
-      ctx.shadowColor = "#00ff9f";
-      ctx.shadowBlur = 14;
       ctx.fillRect(hx, hy, hs, hs);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
       ctx.fillRect(hx + 4, hy + 4, hs - 10, hs - 10);
 
-      // eyes based on direction
       ctx.fillStyle = "#050608";
       const ex = dir.x !== 0 ? dir.x * 3 : 0;
       const ey = dir.y !== 0 ? dir.y * 3 : 0;
@@ -244,25 +208,16 @@ export const snakeGame = {
         ctx.fillRect(eyeBaseX + 2, eyeBaseY - 1, 3, 3);
       }
 
-      // food with orbit rings
       const fx = food.x * tile + tile / 2;
       const fy = food.y * tile + tile / 2;
-      const pulse = 7 + Math.sin(foodPulse) * 2.5;
-      ctx.strokeStyle = `rgba(255, 43, 214, ${0.35 + Math.sin(foodPulse * 1.5) * 0.2})`;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(fx, fy, pulse + 5, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.shadowColor = "#ff2bd6";
-      ctx.shadowBlur = 16;
+      const pulse = 7 + Math.sin(foodPulse) * 1.5;
       ctx.fillStyle = "#ff2bd6";
       ctx.beginPath();
       ctx.arc(fx, fy, pulse, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
       ctx.fillStyle = "#fff";
       ctx.beginPath();
-      ctx.arc(fx, fy, 3.5, 0, Math.PI * 2);
+      ctx.arc(fx, fy, 3, 0, Math.PI * 2);
       ctx.fill();
 
       particles.draw(ctx);
@@ -270,12 +225,6 @@ export const snakeGame = {
 
     function update(dt, ts) {
       if (!active) return;
-
-      // animate trail fade
-      for (let i = trail.length - 1; i >= 0; i--) {
-        trail[i].life -= dt * 0.04;
-        if (trail[i].life <= 0) trail.splice(i, 1);
-      }
 
       if (flash > 0) flash = Math.max(0, flash - dt * 0.0015);
 
@@ -306,7 +255,6 @@ export const snakeGame = {
       moveInterval = BASE_INTERVAL;
       animT = 1;
       flash = 0;
-      trail = [];
       particles.clear();
       spawnFood();
       hud.setScore(0);
@@ -371,7 +319,8 @@ export const snakeGame = {
 
     function applySwipe(dX, dY) {
       if (gameOver || paused) return;
-      const threshold = 24;
+      // Low threshold so short finger flicks still register on phones
+      const threshold = 18;
       if (Math.abs(dX) < threshold && Math.abs(dY) < threshold) return;
       if (Math.abs(dX) > Math.abs(dY)) {
         if (dX > 0) setDirection(1, 0);
@@ -383,12 +332,16 @@ export const snakeGame = {
     }
 
     function bindInput() {
+      let tracking = false;
       touchStartH = (e) => {
         if (!active) return;
-        e.preventDefault();
+        // Only track primary finger / left button
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if (e.cancelable) e.preventDefault();
         const t = e.changedTouches ? e.changedTouches[0] : e;
         touchStart.x = t.clientX;
         touchStart.y = t.clientY;
+        tracking = true;
         if (e.pointerId != null && canvas.setPointerCapture) {
           try {
             canvas.setPointerCapture(e.pointerId);
@@ -398,26 +351,48 @@ export const snakeGame = {
         }
       };
       touchEndH = (e) => {
-        if (!active) return;
-        e.preventDefault();
+        if (!active || !tracking) return;
+        if (e.cancelable) e.preventDefault();
+        tracking = false;
         const t = e.changedTouches ? e.changedTouches[0] : e;
         applySwipe(t.clientX - touchStart.x, t.clientY - touchStart.y);
       };
-      // Prefer PointerEvent (covers touch + pen); fallback to touch for older browsers
+      // Swipe while moving (don't wait for finger up) for snappier snake
+      const onMove = (e) => {
+        if (!active || !tracking) return;
+        if (e.cancelable) e.preventDefault();
+        const t = e.changedTouches ? e.changedTouches[0] : e;
+        const dX = t.clientX - touchStart.x;
+        const dY = t.clientY - touchStart.y;
+        if (Math.abs(dX) >= 22 || Math.abs(dY) >= 22) {
+          applySwipe(dX, dY);
+          touchStart.x = t.clientX;
+          touchStart.y = t.clientY;
+        }
+      };
       if (window.PointerEvent) {
         canvas.addEventListener("pointerdown", touchStartH, { passive: false });
+        canvas.addEventListener("pointermove", onMove, { passive: false });
         canvas.addEventListener("pointerup", touchEndH, { passive: false });
         canvas.addEventListener("pointercancel", touchEndH, { passive: false });
+        touchStartH._onMove = onMove;
       } else {
         canvas.addEventListener("touchstart", touchStartH, { passive: false });
+        canvas.addEventListener("touchmove", onMove, { passive: false });
         canvas.addEventListener("touchend", touchEndH, { passive: false });
+        touchStartH._onMove = onMove;
       }
     }
 
     function unbindInput() {
+      const onMove = touchStartH?._onMove;
       if (touchStartH) {
         canvas.removeEventListener("pointerdown", touchStartH);
         canvas.removeEventListener("touchstart", touchStartH);
+      }
+      if (onMove) {
+        canvas.removeEventListener("pointermove", onMove);
+        canvas.removeEventListener("touchmove", onMove);
       }
       if (touchEndH) {
         canvas.removeEventListener("pointerup", touchEndH);

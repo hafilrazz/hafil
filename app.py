@@ -86,36 +86,42 @@ _init()
 
 @app.after_request
 def add_perf_headers(response):
-    """Caching, security, and small performance headers."""
+    """Caching, compression hints, security headers."""
     path = request.path or ""
 
-    # Long cache for fingerprinted-less static assets (games/css/media)
     if path.startswith("/static/"):
-        if path.endswith((".js", ".css", ".woff2", ".woff")):
+        if path.endswith((".js", ".mjs")):
+            response.cache_control.public = True
+            response.cache_control.max_age = 60 * 60 * 24
+            response.headers["Vary"] = "Accept-Encoding"
+        elif path.endswith((".css", ".woff2", ".woff")):
             response.cache_control.public = True
             response.cache_control.max_age = 60 * 60 * 24 * 7
             response.headers["Vary"] = "Accept-Encoding"
-        elif path.endswith((".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".ogg", ".wav", ".mp3")):
+        elif path.endswith(
+            (".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".ogg", ".wav", ".mp3")
+        ):
             response.cache_control.public = True
             response.cache_control.max_age = 60 * 60 * 24 * 30
         else:
             response.cache_control.public = True
-            response.cache_control.max_age = 60 * 60
+            response.cache_control.max_age = 60 * 30
 
-    # HTML always revalidate
     if path == "/" or path.endswith(".html"):
         response.cache_control.no_cache = True
         response.cache_control.must_revalidate = True
+        response.headers["Link"] = (
+            "</static/css/styles.css>; rel=preload; as=style, "
+            "</static/js/main.js>; rel=modulepreload, "
+            "</static/js/gate.js>; rel=modulepreload"
+        )
+
+    if path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
 
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    # Help browsers prioritize
-    if path == "/":
-        response.headers["Link"] = (
-            "</static/css/styles.css>; rel=preload; as=style, "
-            "</static/js/main.js>; rel=modulepreload"
-        )
     return response
 
 

@@ -43,6 +43,9 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: calc(var(--header-h) + 12px);
+  /* Reduce layout thrash from font swap */
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -54,6 +57,7 @@ body {
   overflow-x: hidden;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  isolation: isolate;
 }
 
 ::selection {
@@ -74,38 +78,27 @@ img {
 /* ========== Ambient layers ========== */
 .nebula-bg {
   position: fixed;
-  inset: -18%;
+  inset: -10%;
   z-index: -2;
-  /* Pure CSS fallback first (fast paint); remote image is progressive enhancement */
   background-color: #050608;
   background-image:
-    radial-gradient(ellipse 70% 50% at 20% 20%, rgba(0, 255, 159, 0.14), transparent 55%),
-    radial-gradient(ellipse 60% 45% at 80% 70%, rgba(255, 43, 214, 0.12), transparent 50%),
-    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(0, 229, 255, 0.1), transparent 55%);
+    radial-gradient(ellipse 70% 50% at 20% 20%, rgba(0, 255, 159, 0.12), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 80% 70%, rgba(255, 43, 214, 0.1), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(0, 229, 255, 0.08), transparent 55%);
   background-size: cover;
   background-position: center;
-  animation: nebulaZoom 50s ease-in-out infinite alternate;
-  will-change: transform;
-  contain: strict;
+  /* No continuous transform animation — major scroll jank source */
+  contain: paint;
 }
 
-/* Load heavy nebula photo only when network allows (saves mobile data) */
-@media (prefers-reduced-data: no-preference) {
-  .nebula-bg.has-photo {
-    background-image:
-      radial-gradient(ellipse 70% 50% at 20% 20%, rgba(0, 255, 159, 0.12), transparent 55%),
-      radial-gradient(ellipse 60% 45% at 80% 70%, rgba(255, 43, 214, 0.1), transparent 50%),
-      radial-gradient(ellipse 50% 40% at 50% 100%, rgba(0, 229, 255, 0.08), transparent 55%),
-      var(--nebula-url);
-    filter: brightness(0.45) contrast(1.25) saturate(1.4);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nebula-bg {
-    animation: none;
-    will-change: auto;
-  }
+/* Optional photo only when class applied (desktop idle load) */
+.nebula-bg.has-photo {
+  background-image:
+    radial-gradient(ellipse 70% 50% at 20% 20%, rgba(0, 255, 159, 0.1), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 80% 70%, rgba(255, 43, 214, 0.08), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(0, 229, 255, 0.06), transparent 55%),
+    var(--nebula-url);
+  /* Avoid expensive filter: on the full-viewport layer */
 }
 
 .nebula-bg::after {
@@ -122,45 +115,56 @@ img {
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  /* Static grid only — no mask (mask is expensive while scrolling) */
   background-image:
-    linear-gradient(rgba(0, 255, 159, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 159, 0.035) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+    linear-gradient(rgba(0, 255, 159, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 159, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.55;
 }
 
+/* Full-screen scanlines removed — they force a huge overlay composite every frame */
 .scanlines::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 255, 159, 0.025) 0px,
-    rgba(0, 255, 159, 0.025) 1px,
-    transparent 1px,
-    transparent 4px
-  );
-  mix-blend-mode: overlay;
-  opacity: 0.7;
+  display: none;
 }
 
 .vignette {
-  position: fixed;
-  inset: 0;
-  z-index: 39;
-  pointer-events: none;
-  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.55);
+  display: none; /* was full-screen inset shadow; heavy on mobile GPUs */
+}
+
+/* Mobile / low-power: kill decorative motion */
+body.perf-lite .robot-float,
+body.perf-lite .hero-glow,
+body.perf-lite .hero-badge .dot,
+body.perf-lite .scroll-hint {
+  animation: none !important;
+}
+
+body.perf-lite .grid-overlay {
+  display: none;
+}
+
+body.perf-lite .site-header {
+  backdrop-filter: none;
+  background: rgba(5, 6, 8, 0.94);
+}
+
+body.perf-lite .panel,
+body.perf-lite .card-glow {
+  backdrop-filter: none;
+  transition: none;
+}
+
+body.perf-lite .card-glow:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 /* ========== Typography helpers ========== */
 .neon-text {
   color: var(--neon);
-  text-shadow:
-    0 0 8px rgba(0, 255, 159, 0.75),
-    0 0 24px rgba(0, 255, 159, 0.35),
-    0 0 48px rgba(0, 255, 159, 0.15);
+  /* Single soft glow — multi-layer text-shadow is costly on long pages */
+  text-shadow: 0 0 12px rgba(0, 255, 159, 0.45);
 }
 
 .neon-soft {
@@ -322,6 +326,22 @@ img {
   font-size: 1.25rem;
 }
 
+.social-logo {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.social-svg {
+  width: 1.45rem;
+  height: 1.45rem;
+  display: block;
+  flex-shrink: 0;
+}
+
+.social-logo:hover .social-svg {
+  filter: drop-shadow(0 0 6px rgba(0, 255, 159, 0.55));
+}
+
 /* ========== Layout shells ========== */
 .shell {
   width: min(1120px, calc(100% - 2rem));
@@ -332,10 +352,12 @@ img {
   position: relative;
   padding: clamp(4rem, 8vw, 6.5rem) 0;
   opacity: 0;
-  transform: translateY(36px);
+  transform: translateY(24px);
   transition:
-    opacity 0.8s var(--ease),
-    transform 0.8s var(--ease);
+    opacity 0.45s var(--ease),
+    transform 0.45s var(--ease);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 }
 
 .section.visible {
@@ -348,7 +370,6 @@ img {
     linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(5, 8, 10, 0.78));
   border-top: 1px solid var(--border);
   border-bottom: 1px solid rgba(0, 255, 159, 0.08);
-  backdrop-filter: blur(8px);
 }
 
 .panel {
@@ -359,8 +380,7 @@ img {
   padding: 1.5rem;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    0 18px 50px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(14px);
+    0 12px 28px rgba(0, 0, 0, 0.3);
 }
 
 .panel::before {
@@ -414,9 +434,9 @@ img {
   display: flex;
   align-items: center;
   border-bottom: 1px solid rgba(0, 255, 159, 0.18);
-  background: rgba(5, 6, 8, 0.72);
-  backdrop-filter: blur(18px) saturate(1.2);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  background: rgba(5, 6, 8, 0.94);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  transform: translateZ(0);
 }
 
 .site-header .shell {
@@ -975,7 +995,6 @@ canvas {
   pointer-events: none;
   transition: opacity 0.3s ease;
   z-index: 5;
-  backdrop-filter: blur(2px);
 }
 
 .game-overlay.active {
@@ -1720,7 +1739,9 @@ canvas {
 .social-row {
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.1rem;
   margin: 2rem 0 1.75rem;
 }
 
@@ -1738,7 +1759,7 @@ canvas {
   background:
     radial-gradient(circle at 50% 30%, rgba(0, 40, 28, 0.45), transparent 45%),
     radial-gradient(circle at center, rgba(8, 10, 12, 0.92), rgba(0, 0, 0, 0.97));
-  backdrop-filter: blur(10px);
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1865,7 +1886,7 @@ canvas {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  backdrop-filter: blur(6px);
+
 }
 
 #scoreModal.open {

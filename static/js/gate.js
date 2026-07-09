@@ -2,7 +2,12 @@
  * Robot verification gate — random questions, correct answer required.
  */
 
-import { unlockAudio, sfx } from "./sfx.js";
+// Lazy SFX — don't pull WebAudio synth until user interacts
+let sfxMod = null;
+async function getSfx() {
+  if (!sfxMod) sfxMod = await import("./sfx.js");
+  return sfxMod;
+}
 
 /** Static question bank: answers compared case-insensitively; numbers as strings too */
 const QUIZ_BANK = [
@@ -157,8 +162,14 @@ export function initGate() {
     puzzleInput.focus();
   }
 
-  function grantAccess(message, botLine) {
-    sfx.win();
+  async function grantAccess(message, botLine) {
+    try {
+      const { unlockAudio, sfx } = await getSfx();
+      unlockAudio();
+      sfx.win();
+    } catch {
+      /* audio optional */
+    }
     gateMsg.style.color = "var(--neon)";
     gateMsg.textContent = message;
     botSay(botLine);
@@ -168,25 +179,30 @@ export function initGate() {
     setTimeout(() => unlock(true), 700);
   }
 
-  function checkPuzzle() {
+  async function checkPuzzle() {
     const val = puzzleInput.value.trim();
     botSay(val || "(empty)", "YOU");
-    unlockAudio();
 
     // Secret override keyword
     if (normalizeAnswer(val) === "fuck") {
-      grantAccess("✅ Override accepted. Welcome in.", "Heh. Master key accepted. Come on in. 🎮");
+      await grantAccess("✅ Override accepted. Welcome in.", "Heh. Master key accepted. Come on in. 🎮");
       return;
     }
 
     if (isCorrect(val, current.answers)) {
-      grantAccess("✅ Access granted. Welcome, human.", "Correct. Verification complete. Welcome in! 🎮");
+      await grantAccess("✅ Access granted. Welcome, human.", "Correct. Verification complete. Welcome in! 🎮");
       return;
     }
 
     // Wrong answer
     fails += 1;
-    sfx.die();
+    try {
+      const { unlockAudio, sfx } = await getSfx();
+      unlockAudio();
+      sfx.die();
+    } catch {
+      /* ignore */
+    }
     gateMsg.style.color = "var(--danger)";
     gateMsg.textContent = "❌ Incorrect. Try again.";
     botLog?.classList.add("shake");

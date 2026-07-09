@@ -1,5 +1,5 @@
 /**
- * Arcade hub — game dropdown, shared canvas loop, HUD, leaderboard hooks.
+ * Arcade hub — lazy game modules, idle loop, leaderboard hooks.
  */
 
 import {
@@ -17,20 +17,45 @@ import {
   gameLabel,
   setLeaderboardStatus,
 } from "./leaderboard.js";
-import { snakeGame } from "./games/snake.js";
-import { pongGame } from "./games/pong.js";
-import { breakoutGame } from "./games/breakout.js";
-import { shooterGame } from "./games/shooter.js";
-import { chessGame } from "./games/chess.js";
 import { loadHigh, pad } from "./games/shared.js";
-import { isTouchDevice } from "./games/mobile.js";
 
-const CATALOG = [
-  snakeGame,
-  pongGame,
-  breakoutGame,
-  shooterGame,
-  chessGame,
+/** Lightweight catalog — full game code loads on demand */
+const GAME_META = [
+  {
+    id: "snake",
+    name: "Neon Snake",
+    controls: "Swipe on board to turn · Pause / Restart · WASD",
+    kind: "canvas",
+    load: () => import("./games/snake.js").then((m) => m.snakeGame),
+  },
+  {
+    id: "pong",
+    name: "Cyber Pong",
+    controls: "Drag finger up/down on board · Pause / Restart",
+    kind: "canvas",
+    load: () => import("./games/pong.js").then((m) => m.pongGame),
+  },
+  {
+    id: "breakout",
+    name: "Brick Breaker",
+    controls: "Drag left/right · tap to launch · Pause / Restart",
+    kind: "canvas",
+    load: () => import("./games/breakout.js").then((m) => m.breakoutGame),
+  },
+  {
+    id: "shooter",
+    name: "Star Blaster",
+    controls: "Drag left/right · tap to fire · Pause / Restart",
+    kind: "canvas",
+    load: () => import("./games/shooter.js").then((m) => m.shooterGame),
+  },
+  {
+    id: "chess",
+    name: "Cyber Chess",
+    controls: "Tap piece → tap square · create/join room",
+    kind: "chess",
+    load: () => import("./games/chess.js").then((m) => m.chessGame),
+  },
 ];
 
 const HIGH_KEYS = {
@@ -40,11 +65,27 @@ const HIGH_KEYS = {
   shooter: "shooterHighScore",
 };
 
+const gameCache = new Map();
+
+async function loadGameDef(meta) {
+  if (gameCache.has(meta.id)) return gameCache.get(meta.id);
+  const def = await meta.load();
+  gameCache.set(meta.id, def);
+  return def;
+}
+
 export function initArcade() {
   const canvas = document.getElementById("gameCanvas");
   if (!canvas) return null;
 
-  const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+  // low-power hint helps mobile browsers throttle GPU less aggressively for 2d
+  const ctx =
+    canvas.getContext("2d", {
+      alpha: false,
+      desynchronized: true,
+      willReadFrequently: false,
+    }) || canvas.getContext("2d", { alpha: false });
+
   const select = document.getElementById("gameSelect");
   const scoreEl = document.getElementById("score");
   const highEl = document.getElementById("highscore");
@@ -59,7 +100,6 @@ export function initArcade() {
   const gameTitle = document.getElementById("activeGameTitle");
   const hofNote = document.getElementById("hofNote");
   const hofSub = document.getElementById("hofSub") || document.querySelector(".hof-sub");
-  const mobilePad = document.getElementById("mobilePad");
   const arcadeSection = document.getElementById("arcade");
   const scoreHud = document.getElementById("scoreHud");
   const canvasGameArea = document.getElementById("canvasGameArea");
@@ -75,16 +115,20 @@ export function initArcade() {
   const modalScore = document.getElementById("modalScore");
   const modalMsg = document.getElementById("modalMsg");
 
-  let currentDef = CATALOG[0];
+  let currentMeta = GAME_META[0];
+  let currentDef = null;
   let instance = null;
   let rafId = 0;
   let lastTs = 0;
   let running = true;
+  let loopActive = false;
+  let lastPauseLabel = "";
   let pendingScore = 0;
   let pendingGame = "snake";
   let submitting = false;
+  let arcadeInView = false;
+  let switching = false;
 
-  // Restore mute preference + UI
   if (loadMutePreference()) {
     setMuted(true);
     if (muteBtn) {
@@ -93,9 +137,8 @@ export function initArcade() {
     }
   }
 
-  // Populate dropdown
   if (select) {
-    select.innerHTML = CATALOG.map(
+    select.innerHTML = GAME_META.map(
       (g) => `<option value="${g.id}">${g.name}</option>`
     ).join("");
   }
@@ -119,52 +162,19 @@ export function initArcade() {
     onGameOver(score, opts = {}) {
       const title = opts.win ? "YOU WIN!" : "GAME OVER";
       hud.showOverlay(title, score);
-      // Every game can enter the per-game DB hall of fame
       if (score > 0) {
         pendingScore = score;
-        pendingGame = currentDef.id;
-        maybePromptLeaderboard(score, currentDef.id);
+        pendingGame = currentMeta.id;
+        maybePromptLeaderboard(score, currentMeta.id);
       }
     },
   };
-
-  function buildInstance(def) {
-    return def.create({ canvas, ctx, hud });
-  }
-
-  function setMobileLayout(layout) {
-    if (!mobilePad) return;
-    if (layout === "none") {
-      mobilePad.hidden = true;
-      return;
-    }
-    const mode = layout || "dpad";
-    mobilePad.dataset.layout = mode;
-    mobilePad.querySelectorAll(".pad-layout").forEach((el) => {
-      el.hidden = el.dataset.for !== mode;
-    });
-  }
-
-  function showMobilePad(show) {
-    if (!mobilePad) return;
-    if (currentDef?.mobileLayout === "none" || currentDef?.kind === "chess") {
-      mobilePad.hidden = true;
-      document.body.classList.remove("arcade-touch");
-      return;
-    }
-    // Show on touch devices always; on desktop hide unless narrow
-    const shouldShow =
-      show && (isTouchDevice() || window.matchMedia("(max-width: 900px)").matches);
-    mobilePad.hidden = !shouldShow;
-    document.body.classList.toggle("arcade-touch", shouldShow);
-  }
 
   function setArcadeMode(mode) {
     const chess = mode === "chess";
     canvasGameArea?.classList.toggle("hidden", chess);
     scoreHud?.classList.toggle("hidden", chess);
     classicControls?.classList.toggle("hidden", chess);
-    // Chess uses full width — no leaderboard panel
     hofPanel?.classList.toggle("hidden", chess);
     arcadeGrid?.classList.toggle("is-chess", chess);
     document.getElementById("arcade")?.classList.toggle("chess-mode", chess);
@@ -175,95 +185,120 @@ export function initArcade() {
     }
   }
 
-  function switchGame(id) {
-    const def = CATALOG.find((g) => g.id === id) || CATALOG[0];
+  function needsGameLoop() {
+    if (!running || document.hidden) return false;
+    if (!instance) return false;
+    if (currentMeta?.kind === "chess") return false;
+    if (!arcadeInView) return false;
+    return true;
+  }
+
+  function startLoop() {
+    if (loopActive) return;
+    if (!needsGameLoop()) return;
+    loopActive = true;
+    lastTs = 0;
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function stopLoop() {
+    loopActive = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+    lastTs = 0;
+  }
+
+  function loop(ts) {
+    if (!loopActive || !running) return;
+    if (!needsGameLoop()) {
+      stopLoop();
+      return;
+    }
+
+    if (!lastTs) lastTs = ts;
+    const safeDt = Math.min(ts - lastTs, 50);
+    lastTs = ts;
+
     if (instance) {
-      instance.stop();
+      instance.update(safeDt, ts);
+      if (pauseBtn && !instance.isGameOver()) {
+        const label = instance.isPaused() ? "RESUME" : "PAUSE";
+        if (label !== lastPauseLabel) {
+          lastPauseLabel = label;
+          pauseBtn.textContent = label;
+        }
+      }
+    }
+
+    rafId = requestAnimationFrame(loop);
+  }
+
+  async function switchGame(id) {
+    if (switching) return;
+    switching = true;
+
+    const meta = GAME_META.find((g) => g.id === id) || GAME_META[0];
+    if (instance) {
+      try {
+        instance.stop();
+      } catch {
+        /* ignore */
+      }
       instance = null;
     }
-    currentDef = def;
+    stopLoop();
+    currentMeta = meta;
 
-    const isChess = def.kind === "chess" || def.id === "chess";
+    const isChess = meta.kind === "chess";
     setArcadeMode(isChess ? "chess" : "canvas");
 
-    if (gameTitle) gameTitle.textContent = def.name;
-    if (controlsHint) {
-      controlsHint.textContent = isChess
-        ? def.controls
-        : isTouchDevice()
-          ? `${def.controls} · use the pad below`
-          : def.controls;
-    }
-    if (hofNote) {
-      hofNote.textContent = isChess
-        ? "Cyber Chess is multiplayer — create a room code and share it with a friend."
-        : `${def.name} scores save to the live Hall of Fame (top 10 for this game).`;
+    if (gameTitle) gameTitle.textContent = meta.name;
+    if (controlsHint) controlsHint.textContent = meta.controls;
+    if (hofNote && !isChess) {
+      hofNote.textContent = `${meta.name} scores save to the live Hall of Fame (top 10 for this game).`;
     }
     if (hofSub) {
       hofSub.textContent = isChess
-        ? "Multiplayer · Socket.IO rooms · python-chess rules"
-        : `${def.name} · top 10 · SQLite database`;
+        ? "Multiplayer · room codes"
+        : `${meta.name} · top 10 · SQLite`;
     }
-    if (select && select.value !== def.id) select.value = def.id;
+    if (select && select.value !== meta.id) select.value = meta.id;
 
     hud.hideOverlay();
     closeScoreModal();
 
-    if (isChess) {
-      hud.setScore(0);
-      hud.setHigh(0);
-      setMobileLayout("none");
-      showMobilePad(false);
-      instance = buildInstance(def);
-      instance.start();
-    } else {
-      const high = loadHigh(HIGH_KEYS[def.id] || `${def.id}HighScore`);
-      hud.setScore(0);
-      hud.setHigh(high);
-      setMobileLayout(def.mobileLayout || "dpad");
-      showMobilePad(true);
-      instance = buildInstance(def);
-      instance.start();
-      pauseBtn.textContent = "PAUSE";
-      setLeaderboardStatus(`Loading ${gameLabel(def.id)} scores...`);
-      refreshLeaderboard(def.id);
+    try {
+      if (controlsHint) controlsHint.textContent = "Loading…";
+      currentDef = await loadGameDef(meta);
+      if (controlsHint) controlsHint.textContent = meta.controls;
+
+      if (isChess) {
+        hud.setScore(0);
+        hud.setHigh(0);
+        instance = currentDef.create({ canvas, ctx, hud });
+        instance.start();
+      } else {
+        const high = loadHigh(HIGH_KEYS[meta.id] || `${meta.id}HighScore`);
+        hud.setScore(0);
+        hud.setHigh(high);
+        instance = currentDef.create({ canvas, ctx, hud });
+        instance.start();
+        pauseBtn.textContent = "PAUSE";
+        lastPauseLabel = "PAUSE";
+        setLeaderboardStatus(`Loading ${gameLabel(meta.id)} scores...`);
+        // Don't block game start on network
+        refreshLeaderboard(meta.id);
+        if (arcadeInView) startLoop();
+      }
+    } catch (err) {
+      console.error(err);
+      if (controlsHint) controlsHint.textContent = "Failed to load game.";
+      setLeaderboardStatus("Could not load game module", true);
+    } finally {
+      switching = false;
     }
   }
 
-  /* ---------- Mobile virtual pad ---------- */
-  function bindMobilePad() {
-    if (!mobilePad) return;
-
-    const onPress = (btn, pressed) => {
-      const action = btn.dataset.action;
-      if (!action || !instance?.control) return;
-      unlockAudio();
-      if (pressed) sfx.pad();
-      instance.control(action, pressed);
-      btn.classList.toggle("is-active", pressed);
-    };
-
-    mobilePad.querySelectorAll(".pad-btn").forEach((btn) => {
-      const down = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onPress(btn, true);
-      };
-      const up = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onPress(btn, false);
-      };
-      btn.addEventListener("pointerdown", down);
-      btn.addEventListener("pointerup", up);
-      btn.addEventListener("pointerleave", up);
-      btn.addEventListener("pointercancel", up);
-      // Prevent long-press context menu / text select
-      btn.addEventListener("contextmenu", (e) => e.preventDefault());
-    });
-  }
-
-  // Keep page from scrolling while dragging on the cabinet
   function bindScrollLock() {
     const wrap = canvas.parentElement;
     if (!wrap) return;
@@ -271,25 +306,7 @@ export function initArcade() {
       if (e.cancelable) e.preventDefault();
     };
     wrap.addEventListener("touchmove", lock, { passive: false });
-    mobilePad?.addEventListener("touchmove", lock, { passive: false });
-  }
-
-  function loop(ts) {
-    if (!running) return;
-    if (!lastTs) lastTs = ts;
-    const dt = ts - lastTs;
-    lastTs = ts;
-
-    // Cap huge tab-switch spikes
-    const safeDt = Math.min(dt, 50);
-    if (instance) {
-      instance.update(safeDt, ts);
-      if (pauseBtn && !instance.isGameOver()) {
-        pauseBtn.textContent = instance.isPaused() ? "RESUME" : "PAUSE";
-      }
-    }
-
-    rafId = requestAnimationFrame(loop);
+    canvas.addEventListener("touchmove", lock, { passive: false });
   }
 
   async function maybePromptLeaderboard(finalScore, gameId) {
@@ -303,12 +320,15 @@ export function initArcade() {
     openScoreModal(finalScore, gameId);
   }
 
-  function openScoreModal(finalScore, gameId = currentDef.id) {
+  function openScoreModal(finalScore, gameId = currentMeta.id) {
     if (!modal) return;
     pendingGame = gameId;
     modalScore.textContent = pad(finalScore);
     modalMsg.textContent = `${gameLabel(gameId)} · top 10! Enter a callsign.`;
-    nameInput.value = localStorage.getItem("arcadePlayerName") || localStorage.getItem("snakePlayerName") || "";
+    nameInput.value =
+      localStorage.getItem("arcadePlayerName") ||
+      localStorage.getItem("snakePlayerName") ||
+      "";
     submitBtn.disabled = false;
     modal.classList.add("open");
     setTimeout(() => nameInput.focus(), 50);
@@ -328,8 +348,7 @@ export function initArcade() {
     const name = nameInput.value.trim() || "ANON";
     localStorage.setItem("arcadePlayerName", name);
     localStorage.setItem("snakePlayerName", name);
-
-    const gameId = pendingGame || currentDef.id;
+    const gameId = pendingGame || currentMeta.id;
 
     try {
       const result = await submitScore(name, pendingScore, gameId);
@@ -361,24 +380,18 @@ export function initArcade() {
     }
   }
 
-  // Input routing
   document.addEventListener("keydown", (e) => {
     if (modal?.classList.contains("open")) return;
-    // Don't steal typing from inputs
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
     unlockAudio();
     if (!instance) return;
     if (instance.onKey(e)) e.preventDefault();
   });
 
-  // First interaction unlocks audio
   const unlockOnce = () => unlockAudio();
-  canvas.addEventListener("pointerdown", unlockOnce, { once: true });
-  document.getElementById("arcade")?.addEventListener("pointerdown", unlockOnce, {
-    once: true,
-  });
+  canvas.addEventListener("pointerdown", unlockOnce, { once: true, passive: true });
+  arcadeSection?.addEventListener("pointerdown", unlockOnce, { once: true, passive: true });
 
   select?.addEventListener("change", () => {
     unlockAudio();
@@ -388,22 +401,24 @@ export function initArcade() {
 
   pauseBtn?.addEventListener("click", () => {
     unlockAudio();
-    if (!instance) return;
-    if (instance.isGameOver()) return;
+    if (!instance || instance.isGameOver()) return;
     instance.togglePause();
     pauseBtn.textContent = instance.isPaused() ? "RESUME" : "PAUSE";
+    lastPauseLabel = pauseBtn.textContent;
   });
 
   restartBtn?.addEventListener("click", () => {
     unlockAudio();
     instance?.reset();
     pauseBtn.textContent = "PAUSE";
+    lastPauseLabel = "PAUSE";
   });
 
   overlayRestart?.addEventListener("click", () => {
     unlockAudio();
     instance?.reset();
     pauseBtn.textContent = "PAUSE";
+    lastPauseLabel = "PAUSE";
   });
 
   muteBtn?.addEventListener("click", () => {
@@ -435,42 +450,38 @@ export function initArcade() {
     if (e.key === "Escape") closeScoreModal();
   });
 
-  // Visibility: pause RAF math when tab hidden (still ok to pause game optionally)
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      lastTs = 0;
-    }
+    if (document.hidden) stopLoop();
+    else startLoop();
   });
 
-  bindMobilePad();
+  if (arcadeSection && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        arcadeInView = Boolean(entry?.isIntersecting);
+        if (arcadeInView) startLoop();
+        else stopLoop();
+      },
+      { rootMargin: "80px 0px", threshold: 0.02 }
+    );
+    io.observe(arcadeSection);
+  } else {
+    arcadeInView = true;
+  }
+
   bindScrollLock();
-
-  // Re-evaluate pad visibility on rotate / resize
-  window.addEventListener("resize", () => {
-    showMobilePad(true);
-  });
-
-  // Scroll arcade into view on mobile when selecting a game (optional comfort)
-  select?.addEventListener("focus", () => {
-    if (isTouchDevice() && arcadeSection) {
-      // don't force scroll on every focus
-    }
-  });
-
   switchGame(select?.value || "snake");
-  rafId = requestAnimationFrame(loop);
 
   return {
     switchGame,
     destroy() {
       running = false;
-      cancelAnimationFrame(rafId);
+      stopLoop();
       instance?.stop();
     },
   };
 }
 
-// Back-compat alias
 export function initGame() {
   return initArcade();
 }

@@ -10,8 +10,7 @@ const HIGH_KEY = "breakoutHighScore";
 export const breakoutGame = {
   id: "breakout",
   name: "Brick Breaker",
-  controls: "Drag paddle · Left/Right pad · Action to launch",
-  mobileLayout: "horizontal",
+  controls: "Drag finger left/right · tap board to launch · Pause / Restart",
   leaderboard: true,
 
   create(api) {
@@ -115,30 +114,19 @@ export const breakoutGame = {
         if (!b.alive) continue;
         ctx.fillStyle = b.color;
         ctx.globalAlpha = b.hp > 1 ? 1 : 0.85;
-        ctx.shadowColor = b.color;
-        ctx.shadowBlur = 8;
         ctx.fillRect(b.x, b.y, b.w, b.h);
-        ctx.shadowBlur = 0;
         ctx.fillStyle = "rgba(255,255,255,0.2)";
         ctx.fillRect(b.x, b.y, b.w, 3);
       }
       ctx.globalAlpha = 1;
 
-      // paddle
-      ctx.shadowColor = "#00ff9f";
-      ctx.shadowBlur = 12;
       ctx.fillStyle = "#00ff9f";
       ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
-      ctx.shadowBlur = 0;
 
-      // ball
-      ctx.shadowColor = "#ff2bd6";
-      ctx.shadowBlur = 14;
       ctx.fillStyle = "#ff2bd6";
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
 
       // lives
       ctx.fillStyle = "rgba(255,255,255,0.5)";
