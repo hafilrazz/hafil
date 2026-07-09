@@ -15,13 +15,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.socket.io">
-  <link rel="preload" href="/static/css/styles.css" as="style">
+  <link rel="preload" href="/static/css/styles.css?v=chat2" as="style">
   <link rel="modulepreload" href="/static/js/main.js">
   <link rel="modulepreload" href="/static/js/gate.js">
   <!-- Fonts: display=swap, async so text isn't blocked -->
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="/static/css/styles.css?v=chat2">
   <!-- Tiny critical styles so first paint isn't blank before CSS -->
   <style>
     html{background:#050608;color:#00ff9f}
@@ -410,40 +410,59 @@
     </section>
 
     <!-- PUBLIC CHAT -->
-    <section id="chat" class="section section--panel">
+    <section id="chat" class="section section--panel visible">
       <div class="shell">
         <p class="section-kicker" style="text-align:center">05 // LOUNGE</p>
         <h2 class="section-title neon-text" style="text-align:center">GLOBAL CHAT</h2>
-        <p class="section-sub" style="text-align:center">Open room for everyone on the site. Enter your name, then say hi.</p>
+        <p class="section-sub" style="text-align:center">Open lounge for everyone on the site. Pick a name and talk.</p>
         <hr class="hr-neon">
 
-        <div class="panel chat-panel">
-          <span class="panel-corner tl" aria-hidden="true"></span>
-          <span class="panel-corner br" aria-hidden="true"></span>
-
-          <!-- Name gate -->
-          <div id="chatNameGate" class="chat-name-gate">
-            <p class="chat-label">WHAT SHOULD WE CALL YOU?</p>
-            <div class="chat-name-row">
-              <input id="chatNameInput" class="cyber-input" type="text" maxlength="16" placeholder="Your name" autocomplete="nickname">
-              <button type="button" id="chatNameBtn" class="game-btn game-btn--solid">JOIN CHAT</button>
-            </div>
-            <p class="chat-hint">No passwords. Just a display name so people know who is talking.</p>
+        <div class="panel chat-panel chat-shell">
+          <div class="chat-shell-bar">
+            <span class="chat-shell-dot"></span>
+            <span class="chat-shell-title">// PUBLIC CHANNEL</span>
+            <span class="chat-shell-live" id="chatLiveBadge">STANDBY</span>
           </div>
 
-          <!-- Chat UI -->
-          <div id="chatMain" class="chat-main hidden">
+          <div id="chatNameGate" class="chat-name-gate">
+            <div class="chat-avatar" aria-hidden="true">💬</div>
+            <p class="chat-label">ENTER DISPLAY NAME</p>
+            <div class="chat-name-row">
+              <input id="chatNameInput" class="cyber-input" type="text" maxlength="16" placeholder="Your name" autocomplete="nickname" enterkeyhint="go">
+              <button type="button" id="chatNameBtn" class="game-btn game-btn--solid chat-join-btn"
+                      onclick="event.preventDefault(); if(window.joinGlobalChat){window.joinGlobalChat();}else if(window.initChat){window.initChat();window.joinGlobalChat&&window.joinGlobalChat();}else{document.getElementById('chatStatus').textContent='Chat script missing — hard refresh (Ctrl+F5)';}">
+                JOIN CHAT
+              </button>
+            </div>
+            <p class="chat-hint">Visible to every visitor. No passwords or room codes.</p>
+          </div>
+
+          <div id="chatMain" class="chat-main" style="display:none" hidden>
             <div class="chat-who">
-              Chatting as <strong id="chatDisplayName">—</strong>
-              <button type="button" id="chatChangeName" class="chat-link-btn">change name</button>
+              <span class="chat-who-pill">YOU</span>
+              <strong id="chatDisplayName">—</strong>
+              <button type="button" id="chatChangeName" class="game-btn game-btn--ghost chat-change-btn">CHANGE NAME</button>
             </div>
             <div id="chatLog" class="chat-log" aria-live="polite"></div>
             <form id="chatForm" class="chat-form" autocomplete="off">
-              <input id="chatMessageInput" class="cyber-input" type="text" maxlength="280" placeholder="Type a message…" required>
-              <button type="submit" class="game-btn game-btn--solid">SEND</button>
+              <input id="chatMessageInput" class="cyber-input" type="text" maxlength="280" placeholder="Write a message…" enterkeyhint="send">
+              <button type="submit" id="chatSendBtn" class="game-btn game-btn--solid">SEND</button>
             </form>
-            <p id="chatStatus" class="chat-status">Connecting…</p>
+
+            <div class="chat-clear-box">
+              <p class="chat-clear-title">CLEAR HISTORY</p>
+              <p class="chat-clear-hint">Type <strong>clear</strong> here (or as a chat message) and press Wipe to delete every message for everyone.</p>
+              <div class="chat-clear-row">
+                <input id="chatClearInput" class="cyber-input chat-clear-input" type="text" maxlength="16" placeholder='type "clear"' autocomplete="off" spellcheck="false">
+                <button type="button" id="chatClearBtn" class="game-btn chat-wipe-btn"
+                        onclick="event.preventDefault(); if(window.clearGlobalChat){window.clearGlobalChat();}else{document.getElementById('chatStatus').textContent='Chat script missing — hard refresh (Ctrl+F5)';}">
+                  WIPE
+                </button>
+              </div>
+            </div>
           </div>
+
+          <p id="chatStatus" class="chat-status">Enter your name, then press JOIN CHAT.</p>
         </div>
       </div>
     </section>
@@ -479,6 +498,8 @@
 
   </div>
 
-  <script type="module" src="/static/js/main.js"></script>
+  <!-- Chat first as classic script — attaches window.joinGlobalChat / clearGlobalChat immediately -->
+  <script src="/static/js/chat.js?v=chat4"></script>
+  <script type="module" src="/static/js/main.js?v=chat4"></script>
 </body>
 </html>

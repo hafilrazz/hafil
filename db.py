@@ -246,6 +246,9 @@ def get_chat_messages(limit: int = CHAT_LIMIT, after_id: int = 0) -> list[dict[s
 
 
 def add_chat_message(name: str, body: str) -> dict[str, Any]:
+    # Ensure table exists (safe if already created)
+    init_db()
+
     player = sanitize_name(name)
     text = " ".join((body or "").strip().split())
     text = "".join(ch for ch in text if ch.isprintable())
@@ -276,4 +279,35 @@ def add_chat_message(name: str, body: str) -> dict[str, Any]:
             "SELECT id, name, body, created_at FROM chat_messages WHERE id = ?",
             (msg_id,),
         ).fetchone()
+    if not row:
+        return {
+            "id": msg_id,
+            "name": player,
+            "body": text,
+            "time": now[11:16],
+            "date": now[:10],
+        }
     return _chat_row(row)
+
+
+def chat_message_count() -> int:
+    """How many chat rows exist right now."""
+    init_db()
+    with get_db() as conn:
+        row = conn.execute("SELECT COUNT(*) AS n FROM chat_messages").fetchone()
+        return int(row["n"])
+
+
+def clear_chat_history() -> int:
+    """Delete every chat message. Returns how many rows were removed."""
+    init_db()
+    with get_db() as conn:
+        cur = conn.execute("SELECT COUNT(*) AS n FROM chat_messages")
+        count = int(cur.fetchone()["n"])
+        conn.execute("DELETE FROM chat_messages")
+        # Also reset autoincrement so new messages start clean (best-effort)
+        try:
+            conn.execute("DELETE FROM sqlite_sequence WHERE name = 'chat_messages'")
+        except Exception:
+            pass
+    return count

@@ -96,8 +96,8 @@ export const snakeGame = {
       }
 
       snake.unshift(head);
-      // Soft step every other cell so it doesn't drown the eat SFX
-      if (snake.length % 2 === 0) sfx.move();
+      // Soft step (no-op until audio unlocked — no console spam)
+      if (snake.length % 3 === 0) sfx.move();
 
       if (head.x === food.x && head.y === food.y) {
         score += 10;

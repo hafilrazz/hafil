@@ -389,62 +389,81 @@ export function initArcade() {
     if (instance.onKey(e)) e.preventDefault();
   });
 
-  const unlockOnce = () => unlockAudio();
-  canvas.addEventListener("pointerdown", unlockOnce, { once: true, passive: true });
-  arcadeSection?.addEventListener("pointerdown", unlockOnce, { once: true, passive: true });
+  const withAudio = (fn) => (e) => {
+    unlockAudio();
+    return fn(e);
+  };
 
-  select?.addEventListener("change", () => {
-    unlockAudio();
-    sfx.select();
-    switchGame(select.value);
-  });
+  canvas.addEventListener("pointerdown", () => unlockAudio(), { passive: true });
+  arcadeSection?.addEventListener("pointerdown", () => unlockAudio(), { passive: true });
 
-  pauseBtn?.addEventListener("click", () => {
-    unlockAudio();
-    if (!instance || instance.isGameOver()) return;
-    instance.togglePause();
-    pauseBtn.textContent = instance.isPaused() ? "RESUME" : "PAUSE";
-    lastPauseLabel = pauseBtn.textContent;
-  });
+  select?.addEventListener(
+    "change",
+    withAudio(() => {
+      sfx.select();
+      switchGame(select.value);
+    })
+  );
 
-  restartBtn?.addEventListener("click", () => {
-    unlockAudio();
-    instance?.reset();
-    pauseBtn.textContent = "PAUSE";
-    lastPauseLabel = "PAUSE";
-  });
+  pauseBtn?.addEventListener(
+    "click",
+    withAudio(() => {
+      if (!instance || instance.isGameOver()) return;
+      instance.togglePause();
+      pauseBtn.textContent = instance.isPaused() ? "RESUME" : "PAUSE";
+      lastPauseLabel = pauseBtn.textContent;
+    })
+  );
 
-  overlayRestart?.addEventListener("click", () => {
-    unlockAudio();
-    instance?.reset();
-    pauseBtn.textContent = "PAUSE";
-    lastPauseLabel = "PAUSE";
-  });
+  restartBtn?.addEventListener(
+    "click",
+    withAudio(() => {
+      instance?.reset();
+      pauseBtn.textContent = "PAUSE";
+      lastPauseLabel = "PAUSE";
+    })
+  );
 
-  muteBtn?.addEventListener("click", () => {
-    unlockAudio();
-    if (isMuted()) {
-      setMuted(false);
-      muteBtn.textContent = "SOUND: ON";
-      muteBtn.setAttribute("aria-pressed", "false");
-      sfx.muteOff();
-    } else {
-      sfx.muteOn();
-      setMuted(true);
-      muteBtn.textContent = "SOUND: OFF";
-      muteBtn.setAttribute("aria-pressed", "true");
-    }
-  });
+  overlayRestart?.addEventListener(
+    "click",
+    withAudio(() => {
+      instance?.reset();
+      pauseBtn.textContent = "PAUSE";
+      lastPauseLabel = "PAUSE";
+    })
+  );
 
-  submitBtn?.addEventListener("click", () => {
-    unlockAudio();
-    handleSubmitScore();
-  });
-  skipBtn?.addEventListener("click", () => {
-    unlockAudio();
-    sfx.blip();
-    closeScoreModal();
-  });
+  muteBtn?.addEventListener(
+    "click",
+    withAudio(() => {
+      if (isMuted()) {
+        setMuted(false);
+        muteBtn.textContent = "SOUND: ON";
+        muteBtn.setAttribute("aria-pressed", "false");
+        sfx.muteOff();
+      } else {
+        // play chirp while still unmuted, then mute
+        sfx.muteOn();
+        setMuted(true);
+        muteBtn.textContent = "SOUND: OFF";
+        muteBtn.setAttribute("aria-pressed", "true");
+      }
+    })
+  );
+
+  submitBtn?.addEventListener(
+    "click",
+    withAudio(() => {
+      handleSubmitScore();
+    })
+  );
+  skipBtn?.addEventListener(
+    "click",
+    withAudio(() => {
+      sfx.blip();
+      closeScoreModal();
+    })
+  );
   nameInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleSubmitScore();
     if (e.key === "Escape") closeScoreModal();

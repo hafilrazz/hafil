@@ -1,279 +1,431 @@
 /**
- * Public global chat — everyone on the site, no room codes.
- * Messages stored in SQLite; live updates via Socket.IO when available, else poll.
+ * Global public chat — classic script (not ES module) so onclick always works.
+ * Loaded with <script src="..."> — no import/export.
  */
+(function () {
+  "use strict";
 
-const CHAT_NAME_KEY = "globalChatName";
-const POLL_MS = 4000;
+  var NAME_KEY = "siteChatName";
 
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-function loadSocketIo() {
-  return new Promise((resolve, reject) => {
-    if (window.io) {
-      resolve(window.io);
-      return;
-    }
-    const existing = document.querySelector("script[data-socketio]");
-    if (existing) {
-      existing.addEventListener("load", () => resolve(window.io));
-      existing.addEventListener("error", () => reject(new Error("socket.io load failed")));
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "https://cdn.socket.io/4.7.5/socket.io.min.js";
-    s.crossOrigin = "anonymous";
-    s.dataset.socketio = "1";
-    s.onload = () => resolve(window.io);
-    s.onerror = () => reject(new Error("socket.io load failed"));
-    document.head.appendChild(s);
-  });
-}
-
-export function initChat() {
-  const nameGate = document.getElementById("chatNameGate");
-  const chatMain = document.getElementById("chatMain");
-  const nameInput = document.getElementById("chatNameInput");
-  const nameBtn = document.getElementById("chatNameBtn");
-  const displayName = document.getElementById("chatDisplayName");
-  const changeNameBtn = document.getElementById("chatChangeName");
-  const log = document.getElementById("chatLog");
-  const form = document.getElementById("chatForm");
-  const msgInput = document.getElementById("chatMessageInput");
-  const status = document.getElementById("chatStatus");
-
-  if (!nameGate || !chatMain || !log || !form) {
-    console.warn("Chat UI missing from page — hard refresh (Ctrl+F5)");
-    return;
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
-  // Avoid double-binding if initChat runs twice
-  if (form.dataset.bound === "1") return;
-  form.dataset.bound = "1";
-
-  let myName = "";
-  let lastId = 0;
-  let pollTimer = null;
-  let socket = null;
-  const seen = new Set();
-
-  function setStatus(text, isError = false) {
-    if (!status) return;
-    status.textContent = text;
-    status.classList.toggle("is-error", isError);
-  }
-
-  function appendMessage(msg, { scroll = true } = {}) {
-    if (!msg || seen.has(msg.id)) return;
-    seen.add(msg.id);
-    if (msg.id > lastId) lastId = msg.id;
-
-    const row = document.createElement("div");
-    row.className = "chat-msg";
-    if (msg.name === myName) row.classList.add("is-mine");
-    row.innerHTML = `
-      <div class="chat-msg-head">
-        <span class="chat-msg-name">${escapeHtml(msg.name)}</span>
-        <span class="chat-msg-time">${escapeHtml(msg.time || "")}</span>
-      </div>
-      <div class="chat-msg-body">${escapeHtml(msg.body)}</div>
-    `;
-    log.appendChild(row);
-    if (scroll) log.scrollTop = log.scrollHeight;
-  }
-
-  function renderMany(messages) {
-    const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
-    for (const m of messages) appendMessage(m, { scroll: false });
-    if (nearBottom) log.scrollTop = log.scrollHeight;
-  }
-
-  async function fetchMessages({ after = 0, full = false } = {}) {
-    const url = after > 0 ? `/api/chat?after=${after}` : "/api/chat";
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (res.status === 404) {
-      throw new Error("Chat API not found — restart the server (python app.py)");
-    }
-    if (!res.ok) throw new Error(`Could not load chat (${res.status})`);
-    const data = await res.json();
-    const list = data.messages || [];
-    if (full) {
-      log.innerHTML = "";
-      seen.clear();
-      lastId = 0;
-    }
-    if (list.length) {
-      const empty = log.querySelector(".chat-empty");
-      if (empty) empty.remove();
-      renderMany(list);
-    } else if (full && !log.querySelector(".chat-msg")) {
-      log.innerHTML = `<p class="chat-empty">No messages yet. Be the first to say something.</p>`;
-    }
-    return list;
-  }
-
-  async function sendMessage(body) {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ name: myName, body }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 404) {
-      throw new Error("Chat API not found — restart the server (python app.py)");
-    }
-    if (!res.ok) throw new Error(data.error || `Could not send (${res.status})`);
-    // Also append locally in case socket is slow/missing
-    if (data.message) {
-      const empty = log.querySelector(".chat-empty");
-      if (empty) empty.remove();
-      appendMessage(data.message);
-    }
-    return data.message;
-  }
-
-  function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(async () => {
-      try {
-        await fetchMessages({ after: lastId });
-        setStatus("Online · public room");
-      } catch {
-        setStatus("Reconnecting…", true);
-      }
-    }, POLL_MS);
-  }
-
-  function stopPolling() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = null;
-  }
-
-  async function tryLiveSocket() {
-    try {
-      const io = await loadSocketIo();
-      socket = io({
-        path: "/socket.io",
-        transports: ["websocket", "polling"],
-        reconnection: true,
-      });
-      socket.on("connect", () => setStatus("Live · public room"));
-      socket.on("disconnect", () => {
-        setStatus("Polling · public room");
-        startPolling();
-      });
-      socket.on("chat:message", (msg) => {
-        // clear empty state
-        const empty = log.querySelector(".chat-empty");
-        if (empty) empty.remove();
-        appendMessage(msg);
-      });
-      // Still light-poll as backup for missed events
-      startPolling();
-    } catch {
-      setStatus("Polling · public room");
-      startPolling();
-    }
-  }
-
-  function enterChat(name) {
-    myName = name;
-    try {
-      localStorage.setItem(CHAT_NAME_KEY, name);
-    } catch {
-      /* ignore */
-    }
-    nameGate.classList.add("hidden");
-    chatMain.classList.remove("hidden");
-    if (displayName) displayName.textContent = name;
-    setStatus("Loading messages…");
-    fetchMessages({ full: true })
-      .then(() => {
-        setStatus("Online · public room");
-        tryLiveSocket();
-        msgInput?.focus();
-      })
-      .catch(() => setStatus("Could not load chat. Is the server running?", true));
-  }
-
-  function showNameGate() {
-    stopPolling();
-    if (socket) {
-      try {
-        socket.disconnect();
-      } catch {
-        /* ignore */
-      }
-      socket = null;
-    }
-    chatMain.classList.add("hidden");
-    nameGate.classList.remove("hidden");
-    nameInput?.focus();
-  }
-
-  nameBtn?.addEventListener("click", () => {
-    const name = (nameInput?.value || "").trim();
-    if (!name) {
-      nameInput?.focus();
-      return;
-    }
-    enterChat(name.slice(0, 16));
-  });
-
-  nameInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") nameBtn?.click();
-  });
-
-  changeNameBtn?.addEventListener("click", () => {
-    showNameGate();
-    if (nameInput) nameInput.value = myName;
-  });
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const body = (msgInput?.value || "").trim();
-    if (!body || !myName) return;
-    msgInput.value = "";
-    try {
-      const empty = log.querySelector(".chat-empty");
-      if (empty) empty.remove();
-      await sendMessage(body);
-      setStatus("Online · public room");
-    } catch (err) {
-      setStatus(err.message || "Failed to send", true);
-      msgInput.value = body;
-    }
-  });
-
-  // Resume name if returning visitor
-  try {
-    const saved = localStorage.getItem(CHAT_NAME_KEY);
-    if (saved) {
-      if (nameInput) nameInput.value = saved;
-      // Don't auto-join — let them confirm name, but prefill
-    }
-  } catch {
-    /* ignore */
-  }
-
-  // Load messages in background so the log isn't empty when they join
-  // (name gate still required before posting)
-  const chatSection = document.getElementById("chat");
-  if (chatSection && "IntersectionObserver" in window) {
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting && myName) {
-          fetchMessages({ after: lastId }).catch(() => {});
-        }
-      },
-      { threshold: 0.1 }
+  function isClearWord(value) {
+    return (
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z]/g, "") === "clear"
     );
-    io.observe(chatSection);
   }
-}
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function setStatus(text, isError) {
+    var status = $("chatStatus");
+    if (!status) return;
+    status.textContent = text || "";
+    if (isError) status.classList.add("is-error");
+    else status.classList.remove("is-error");
+  }
+
+  // ---- Immediate globals (available even before full init) ----
+  window.clearGlobalChat = function clearGlobalChat() {
+    var input = $("chatClearInput");
+    var log = $("chatLog");
+    var word = input ? input.value : "";
+    if (!isClearWord(word)) {
+      setStatus('Type "clear" in the box, then press WIPE.', true);
+      if (input) {
+        input.focus();
+        input.classList.add("chat-input-error");
+        setTimeout(function () {
+          input.classList.remove("chat-input-error");
+        }, 700);
+      }
+      return Promise.resolve(false);
+    }
+
+    setStatus("Wiping chat history…", false);
+    return fetch("/api/chat/clear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: "clear" }),
+      cache: "no-store",
+    })
+      .then(function (res) {
+        return res.json().catch(function () {
+          return {};
+        }).then(function (data) {
+          if (!res.ok) throw new Error(data.error || "Clear failed (" + res.status + ")");
+          return data;
+        });
+      })
+      .then(function (data) {
+        if (input) input.value = "";
+        if (log) {
+          log.innerHTML =
+            '<p class="chat-empty">Chat cleared. Start a new conversation.</p>';
+        }
+        // Reset poll state if full chat is running
+        if (window.__chatState) {
+          window.__chatState.seen = {};
+          window.__chatState.lastId = 0;
+        }
+        setStatus(
+          "History wiped (" + (data.deleted || 0) + " messages removed).",
+          false
+        );
+        return true;
+      })
+      .catch(function (err) {
+        setStatus(err.message || "Could not clear chat", true);
+        console.error("[chat] wipe failed", err);
+        return false;
+      });
+  };
+
+  window.joinGlobalChat = function joinGlobalChat() {
+    if (window.__chatApi && window.__chatApi.join) {
+      return window.__chatApi.join();
+    }
+    // Fallback if full init has not finished
+    initChat();
+    if (window.__chatApi && window.__chatApi.join) {
+      return window.__chatApi.join();
+    }
+    setStatus("Chat is starting — try JOIN again.", true);
+  };
+
+  window.sendGlobalChat = function sendGlobalChat(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (window.__chatApi && window.__chatApi.send) {
+      return window.__chatApi.send(e);
+    }
+    setStatus("Join chat first, then send.", true);
+  };
+
+  function initChat() {
+    var gate = $("chatNameGate");
+    var main = $("chatMain");
+    var nameInput = $("chatNameInput");
+    var joinBtn = $("chatNameBtn");
+    var nameLabel = $("chatDisplayName");
+    var changeBtn = $("chatChangeName");
+    var log = $("chatLog");
+    var form = $("chatForm");
+    var msgInput = $("chatMessageInput");
+    var clearInput = $("chatClearInput");
+    var clearBtn = $("chatClearBtn");
+    var liveBadge = $("chatLiveBadge");
+
+    if (!gate || !main || !nameInput || !joinBtn || !log || !form) {
+      console.warn("[chat] UI elements not found yet");
+      return false;
+    }
+
+    // Allow re-bind if previous init was incomplete
+    if (window.__chatInited && window.__chatApi) return true;
+    window.__chatInited = true;
+
+    var myName = "";
+    var lastId = 0;
+    var timer = null;
+    var holdStatusUntil = 0;
+    var seen = Object.create(null);
+    var state = { lastId: 0, seen: seen };
+    window.__chatState = state;
+
+    function statusText(t, err, holdMs) {
+      setStatus(t, !!err);
+      if (holdMs) holdStatusUntil = Date.now() + holdMs;
+    }
+
+    function statusIfFree(t, err) {
+      if (Date.now() < holdStatusUntil) return;
+      statusText(t, err);
+    }
+
+    function setLive(text, on) {
+      if (!liveBadge) return;
+      liveBadge.textContent = text;
+      if (on) liveBadge.classList.add("is-on");
+      else liveBadge.classList.remove("is-on");
+    }
+
+    function openRoom() {
+      gate.style.display = "none";
+      gate.hidden = true;
+      main.hidden = false;
+      main.style.display = "block";
+      setLive("LIVE", true);
+    }
+
+    function openGate() {
+      main.style.display = "none";
+      main.hidden = true;
+      gate.hidden = false;
+      gate.style.display = "block";
+      setLive("STANDBY", false);
+    }
+
+    function resetLogEmpty(msg) {
+      log.innerHTML =
+        '<p class="chat-empty">' +
+        esc(msg || "Chat cleared. Start a new conversation.") +
+        "</p>";
+      seen = Object.create(null);
+      lastId = 0;
+      state.seen = seen;
+      state.lastId = 0;
+    }
+
+    function addMsg(m) {
+      if (!m || m.id == null || seen[m.id]) return;
+      seen[m.id] = true;
+      if (m.id > lastId) lastId = m.id;
+      state.lastId = lastId;
+
+      var empty = log.querySelector(".chat-empty");
+      if (empty) empty.remove();
+
+      var div = document.createElement("div");
+      div.className = "chat-msg" + (m.name === myName ? " is-mine" : "");
+      div.innerHTML =
+        '<div class="chat-msg-head">' +
+        '<span class="chat-msg-name">' +
+        esc(m.name) +
+        "</span>" +
+        '<span class="chat-msg-time">' +
+        esc(m.time || "") +
+        "</span></div>" +
+        '<div class="chat-msg-body">' +
+        esc(m.body) +
+        "</div>";
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function refresh(full) {
+      var url = full || !lastId ? "/api/chat" : "/api/chat?after=" + lastId;
+      return fetch(url, { cache: "no-store" }).then(function (res) {
+        if (!res.ok) {
+          throw new Error(
+            res.status === 404
+              ? "Server needs restart (python app.py)"
+              : "Load failed (" + res.status + ")"
+          );
+        }
+        return res.json().then(function (data) {
+          var list = data.messages || [];
+          var total = typeof data.total === "number" ? data.total : null;
+
+          if (
+            total === 0 &&
+            (Object.keys(seen).length > 0 || log.querySelector(".chat-msg"))
+          ) {
+            resetLogEmpty("Chat cleared. Start a new conversation.");
+            return;
+          }
+
+          if (full) {
+            log.innerHTML = "";
+            seen = Object.create(null);
+            lastId = 0;
+            state.seen = seen;
+            state.lastId = 0;
+          }
+          if (full && !list.length) {
+            log.innerHTML =
+              '<p class="chat-empty">No messages yet. Be the first!</p>';
+            return;
+          }
+          list.forEach(addMsg);
+        });
+      });
+    }
+
+    function stopPoll() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    }
+
+    function startPoll() {
+      stopPoll();
+      var ticks = 0;
+      timer = setInterval(function () {
+        ticks += 1;
+        var full = ticks % 5 === 0;
+        refresh(full)
+          .then(function () {
+            statusIfFree("Online — public chat");
+          })
+          .catch(function () {
+            statusIfFree("Reconnecting…", true);
+          });
+      }, 3000);
+    }
+
+    function doJoin() {
+      var name = (nameInput.value || "").trim().slice(0, 16);
+      if (!name) {
+        statusText("Type a name first.", true, 3000);
+        nameInput.focus();
+        return;
+      }
+
+      myName = name;
+      try {
+        localStorage.setItem(NAME_KEY, name);
+      } catch (_) {}
+
+      if (nameLabel) nameLabel.textContent = name;
+      openRoom();
+      statusText("Loading…");
+
+      refresh(true)
+        .then(function () {
+          statusText("Online — public chat");
+          startPoll();
+          if (msgInput) msgInput.focus();
+        })
+        .catch(function (e) {
+          statusText(e.message || "Could not load chat", true, 5000);
+          startPoll();
+        });
+    }
+
+    function doSend(e) {
+      if (e && e.preventDefault) e.preventDefault();
+      if (!myName) {
+        openGate();
+        statusText("Join with your name first.", true, 3000);
+        return;
+      }
+      var body = (msgInput.value || "").trim();
+      if (!body) return;
+
+      if (isClearWord(body)) {
+        msgInput.value = "";
+        if (clearInput) clearInput.value = "clear";
+        return window.clearGlobalChat();
+      }
+
+      msgInput.value = "";
+      return fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: myName, body: body }),
+        cache: "no-store",
+      })
+        .then(function (res) {
+          return res.json().catch(function () {
+            return {};
+          }).then(function (data) {
+            if (!res.ok) throw new Error(data.error || "Send failed (" + res.status + ")");
+            return data;
+          });
+        })
+        .then(function (data) {
+          if (data.cleared) {
+            resetLogEmpty("Chat cleared. Start a new conversation.");
+            statusText(
+              "History wiped (" + (data.deleted || 0) + " messages removed).",
+              false,
+              5000
+            );
+            return;
+          }
+          if (data.message) addMsg(data.message);
+          statusIfFree("Online — public chat");
+        })
+        .catch(function (err) {
+          statusText(err.message || "Send failed", true, 4000);
+          msgInput.value = body;
+        });
+    }
+
+    // Full API for globals
+    window.__chatApi = { join: doJoin, send: doSend };
+    window.joinGlobalChat = doJoin;
+    window.sendGlobalChat = doSend;
+    // keep clearGlobalChat as the top-level wipe (already defined)
+
+    joinBtn.onclick = function (e) {
+      e.preventDefault();
+      doJoin();
+    };
+
+    nameInput.onkeydown = function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        doJoin();
+      }
+    };
+
+    form.onsubmit = function (e) {
+      e.preventDefault();
+      doSend(e);
+    };
+
+    if (changeBtn) {
+      changeBtn.onclick = function (e) {
+        e.preventDefault();
+        stopPoll();
+        openGate();
+        nameInput.value = myName;
+        nameInput.focus();
+      };
+    }
+
+    if (clearBtn) {
+      clearBtn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.clearGlobalChat();
+      };
+    }
+
+    if (clearInput) {
+      clearInput.onkeydown = function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          window.clearGlobalChat();
+        }
+      };
+    }
+
+    try {
+      var saved = localStorage.getItem(NAME_KEY);
+      if (saved) nameInput.value = saved;
+    } catch (_) {}
+
+    openGate();
+    statusText("Enter your name, then press JOIN CHAT.");
+    console.log("[chat] ready — join/clear globals attached");
+    return true;
+  }
+
+  window.initChat = initChat;
+
+  function boot() {
+    try {
+      initChat();
+    } catch (e) {
+      console.error("[chat] init error", e);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();

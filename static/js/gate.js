@@ -165,7 +165,8 @@ export function initGate() {
   async function grantAccess(message, botLine) {
     try {
       const { unlockAudio, sfx } = await getSfx();
-      unlockAudio();
+      // VERIFY click is a user gesture — unlock first, then play
+      await unlockAudio();
       sfx.win();
     } catch {
       /* audio optional */
@@ -198,7 +199,7 @@ export function initGate() {
     fails += 1;
     try {
       const { unlockAudio, sfx } = await getSfx();
-      unlockAudio();
+      await unlockAudio();
       sfx.die();
     } catch {
       /* ignore */

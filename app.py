@@ -212,25 +212,76 @@ def chat_list():
     except (TypeError, ValueError):
         after = 0
     messages = db.get_chat_messages(after_id=after)
-    return jsonify({"messages": messages})
+    total = db.chat_message_count()
+    return jsonify({"messages": messages, "total": total})
 
 
 @app.post("/api/chat")
 def chat_post():
+    # Ensure tables exist even if server was started before chat was added
+    try:
+        db.init_db()
+    except Exception:
+        pass
+
     payload = request.get_json(silent=True) or {}
     name = payload.get("name", "")
     body = payload.get("body") or payload.get("message") or ""
+    # Allow wipe command via normal message send (type "clear")
+    if str(body).strip().lower() == "clear":
+        deleted = db.clear_chat_history()
+        try:
+            socketio.emit("chat:cleared", {"ok": True, "deleted": deleted})
+        except Exception:
+            pass
+        return jsonify({"ok": True, "cleared": True, "deleted": deleted, "total": 0})
+
     try:
         msg = db.add_chat_message(str(name), str(body))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    # Live push to everyone currently connected
+    # Live push to everyone currently connected (optional)
     try:
         socketio.emit("chat:message", msg)
     except Exception:
         pass
-    return jsonify({"message": msg}), 201
+    return jsonify({"ok": True, "message": msg}), 201
+
+
+@app.post("/api/chat/clear")
+def chat_clear():
+    """Wipe entire chat history. Body must include confirm: \"clear\"."""
+    try:
+        db.init_db()
+    except Exception:
+        pass
+
+    payload = request.get_json(silent=True) or {}
+    if not payload and request.form:
+        payload = request.form.to_dict()
+    confirm = str(
+        payload.get("confirm")
+        or payload.get("text")
+        or payload.get("body")
+        or payload.get("message")
+        or request.args.get("confirm")
+        or ""
+    ).strip().lower()
+    # Also accept raw body "clear"
+    if confirm != "clear":
+        raw = (request.get_data(as_text=True) or "").strip().lower().strip('"')
+        if raw == "clear" or raw == '{"confirm":"clear"}':
+            confirm = "clear"
+    if confirm != "clear":
+        return jsonify({"error": 'Type "clear" exactly to wipe chat history'}), 400
+
+    deleted = db.clear_chat_history()
+    try:
+        socketio.emit("chat:cleared", {"ok": True, "deleted": deleted})
+    except Exception:
+        pass
+    return jsonify({"ok": True, "deleted": deleted, "total": 0})
 
 
 @app.errorhandler(404)
