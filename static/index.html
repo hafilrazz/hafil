@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#050608">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="Hafil Razak — Computer Science student, code warrior, retro arcade portfolio with multiplayer chess and mini-games.">
+  <meta name="author" content="Hafil Razak">
+  <meta property="og:title" content="HAFIL RAZAK // LEVEL 01">
+  <meta property="og:description" content="Cyberpunk portfolio · retro arcade · multiplayer chess">
+  <meta property="og:type" content="website">
+  <title>HAFIL RAZAK // LEVEL 01</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.socket.io">
+  <link rel="preload" href="/static/css/styles.css" as="style">
+  <link rel="modulepreload" href="/static/js/main.js">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"></noscript>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="scanlines">
+
+  <div class="nebula-bg" aria-hidden="true"></div>
+  <div class="grid-overlay" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <!-- ================= ROBOT VERIFICATION GATE ================= -->
+  <div id="gate" role="dialog" aria-label="Human verification">
+    <div class="gate-card">
+      <span class="panel-corner tl" aria-hidden="true"></span>
+      <span class="panel-corner tr" aria-hidden="true"></span>
+      <span class="panel-corner bl" aria-hidden="true"></span>
+      <span class="panel-corner br" aria-hidden="true"></span>
+
+      <div class="gate-header">
+        <div class="robot-float" aria-hidden="true">🤖</div>
+        <h2 class="section-title neon-text" style="font-size:1.45rem;margin-bottom:0.35rem">HUMAN VERIFICATION</h2>
+        <p class="type-line" style="margin:0;color:var(--text-muted);font-size:0.85rem">SYSTEM: prove you are not a robot...</p>
+      </div>
+
+      <div id="botLog" aria-live="polite"></div>
+
+      <div class="gate-field">
+        <label for="puzzleInput">SOLVE THE ACCESS CODE</label>
+        <p id="puzzleQ" class="neon-soft"></p>
+        <div class="input-row">
+          <input id="puzzleInput" class="cyber-input" type="text" inputmode="numeric" placeholder="answer" autocomplete="off">
+          <button id="puzzleBtn" type="button" class="game-btn game-btn--solid">VERIFY</button>
+        </div>
+      </div>
+
+      <p id="gateMsg" role="status"></p>
+    </div>
+  </div>
+
+  <!-- ================= SCORE SUBMIT MODAL ================= -->
+  <div id="scoreModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <span class="panel-corner tl" aria-hidden="true"></span>
+      <span class="panel-corner tr" aria-hidden="true"></span>
+      <span class="panel-corner bl" aria-hidden="true"></span>
+      <span class="panel-corner br" aria-hidden="true"></span>
+
+      <h3 id="modalTitle" class="neon-text">🏆 HALL OF FAME</h3>
+      <p class="modal-score"><span id="modalScore">000</span></p>
+      <p id="modalMsg">Enter your callsign</p>
+      <label for="playerName" class="sr-only">Player name</label>
+      <input id="playerName" class="cyber-input" type="text" maxlength="16" placeholder="CALLSIGN (max 16)" autocomplete="nickname">
+      <div class="modal-actions">
+        <button id="submitScoreBtn" type="button" class="game-btn game-btn--solid">SUBMIT</button>
+        <button id="skipScoreBtn" type="button" class="game-btn game-btn--ghost">SKIP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SITE CONTENT ================= -->
+  <div id="siteContent" class="locked">
+
+    <header class="site-header">
+      <div class="shell">
+        <a href="#" class="brand" aria-label="Home">
+          <div class="brand-mark" aria-hidden="true">🕹️</div>
+          <div class="brand-text">
+            <strong class="neon-text">HAFIL RAZAK</strong>
+            <span>LVL 01 · ONLINE</span>
+          </div>
+        </a>
+        <nav class="nav-links" aria-label="Main">
+          <a href="#about" data-nav>ABOUT</a>
+          <a href="#skills" data-nav>SKILLS</a>
+          <a href="#projects" data-nav>QUESTS</a>
+          <a href="#arcade" data-nav>ARCADE</a>
+          <a href="#contact" data-nav>CONNECT</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <div class="hero-badge">
+          <span class="dot" aria-hidden="true"></span>
+          PLAYER ONE READY
+        </div>
+        <h1 class="hero-title">HAFIL RAZAK</h1>
+        <p class="hero-tagline">COMPUTER SCIENCE STUDENT · CODE WARRIOR</p>
+
+        <div class="hero-stats">
+          <span class="stat-chip"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> INDIA</span>
+          <span class="stat-chip"><i class="fas fa-code" aria-hidden="true"></i> FULL-STACK</span>
+          <span class="stat-chip"><i class="fas fa-gamepad" aria-hidden="true"></i> ARCADE ONLINE</span>
+        </div>
+
+        <div class="hero-actions">
+          <a href="https://github.com/hafilrazz" target="_blank" rel="noopener noreferrer" class="game-btn game-btn--solid">
+            <i class="fab fa-github" aria-hidden="true"></i> GITHUB
+          </a>
+          <a href="https://www.linkedin.com/in/hafilrazz" target="_blank" rel="noopener noreferrer" class="game-btn">
+            <i class="fab fa-linkedin" aria-hidden="true"></i> LINKEDIN
+          </a>
+          <a href="#arcade" class="game-btn game-btn--ghost">
+            <i class="fas fa-play" aria-hidden="true"></i> ENTER ARCADE
+          </a>
+        </div>
+      </div>
+      <div class="scroll-hint" aria-hidden="true">
+        SCROLL
+        <span></span>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="about" class="section section--panel">
+      <div class="shell">
+        <p class="section-kicker">01 // PROFILE</p>
+        <h2 class="section-title neon-text">MISSION BRIEF</h2>
+        <hr class="hr-neon">
+
+        <div class="about-grid">
+          <div class="panel card-glow">
+            <span class="panel-corner tl" aria-hidden="true"></span>
+            <span class="panel-corner br" aria-hidden="true"></span>
+            <div class="about-copy">
+              <p>Passionate Computer Science student from India building real-world solutions through code. Always leveling up, one commit at a time.</p>
+              <p>From AI experiments to full-stack systems — shipping projects, learning in public, and treating every bug as a boss fight.</p>
+            </div>
+            <div class="level-bar">
+              <div class="level-bar-head">
+                <span>XP TO NEXT LEVEL</span>
+                <span>72%</span>
+              </div>
+              <div class="level-track" aria-hidden="true">
+                <div class="level-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel card-glow">
+            <span class="panel-corner tl" aria-hidden="true"></span>
+            <span class="panel-corner br" aria-hidden="true"></span>
+            <h3 class="display neon-soft" style="margin:0 0 1.1rem;font-size:0.95rem;letter-spacing:0.16em">CURRENT STATUS</h3>
+            <ul class="status-list">
+              <li>
+                <span class="label">BASE</span>
+                <span class="value">India</span>
+              </li>
+              <li>
+                <span class="label">BRANCH</span>
+                <span class="value">Computer Science</span>
+              </li>
+              <li>
+                <span class="label">MAIN QUEST</span>
+                <span class="value">Software Engineering</span>
+              </li>
+              <li>
+                <span class="label">STATUS</span>
+                <span class="value" style="color:var(--neon)">● AVAILABLE</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SKILLS -->
+    <section id="skills" class="section">
+      <div class="shell">
+        <p class="section-kicker" style="text-align:center">02 // LOADOUT</p>
+        <h2 class="section-title neon-text" style="text-align:center">POWER-UPS</h2>
+        <p class="section-sub" style="text-align:center">Tools unlocked on the path from script-kiddie to systems architect.</p>
+        <hr class="hr-neon">
+
+        <div class="skills-grid">
+          <div class="skill-card card-glow"><span class="skill-icon">🐍</span><span class="skill-name">Python</span></div>
+          <div class="skill-card card-glow"><span class="skill-icon">☕</span><span class="skill-name">Java</span></div>
+          <div class="skill-card card-glow"><span class="skill-icon">🌐</span><span class="skill-name">JS / React</span></div>
+          <div class="skill-card card-glow"><span class="skill-icon">🗄️</span><span class="skill-name">SQL</span></div>
+          <div class="skill-card card-glow"><span class="skill-icon">📡</span><span class="skill-name">Node.js</span></div>
+          <div class="skill-card card-glow"><span class="skill-icon">⚡</span><span class="skill-name">Tailwind</span></div>
+          <div class="skill-card card-glow"><span class="skill-icon">🔧</span><span class="skill-name">Git</span></div>
+          <div class="skill-card card-glow"><span class="skill-icon">🧠</span><span class="skill-name">DSA</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="projects" class="section section--panel">
+      <div class="shell">
+        <p class="section-kicker">03 // QUESTS</p>
+        <h2 class="section-title neon-text">ACTIVE QUESTS</h2>
+        <p class="section-sub" style="margin-left:0">Side missions and mainline builds currently in the inventory.</p>
+        <hr class="hr-neon">
+
+        <div class="projects-grid">
+          <article class="quest-card card-glow">
+            <div class="quest-meta">
+              <span class="quest-tag">AI · HEALTH</span>
+              <span class="quest-status">ACTIVE</span>
+            </div>
+            <h3>Pet Health AI</h3>
+            <p>AI-powered assistant for monitoring pet wellness and catching issues early.</p>
+            <a class="quest-link" href="https://github.com/hafilrazz/pet-AI" target="_blank" rel="noopener noreferrer">VIEW REPO <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+          </article>
+
+          <article class="quest-card card-glow">
+            <div class="quest-meta">
+              <span class="quest-tag">VISION · R&amp;D</span>
+              <span class="quest-status">EXPERIMENTAL</span>
+            </div>
+            <h3>Neurolense</h3>
+            <p>Experimental vision / neural interface project exploring next-gen interfaces.</p>
+            <a class="quest-link" href="https://github.com/hafilrazz/neurolense" target="_blank" rel="noopener noreferrer">VIEW REPO <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+          </article>
+
+          <article class="quest-card card-glow">
+            <div class="quest-meta">
+              <span class="quest-tag">NETWORK · BOTS</span>
+              <span class="quest-status">ACTIVE</span>
+            </div>
+            <h3>Net2bot</h3>
+            <p>Networking automation bot that turns repetitive ops into one-command missions.</p>
+            <a class="quest-link" href="https://github.com/hafilrazz/Net2bot" target="_blank" rel="noopener noreferrer">VIEW REPO <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+          </article>
+
+          <article class="quest-card card-glow">
+            <div class="quest-meta">
+              <span class="quest-tag">FULL-STACK</span>
+              <span class="quest-status">SHIPPED</span>
+            </div>
+            <h3>Full-Stack Chat App</h3>
+            <p>Real-time messaging with a full-stack architecture and live updates.</p>
+            <a class="quest-link" href="https://github.com/hafilrazz/full-stack_chatApp" target="_blank" rel="noopener noreferrer">VIEW REPO <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCADE -->
+    <section id="arcade" class="section">
+      <div class="shell">
+        <p class="section-kicker" style="text-align:center">04 // MINI-GAMES</p>
+        <h2 class="section-title neon-text" style="text-align:center">RETRO ARCADE</h2>
+        <p class="section-sub" style="text-align:center">Pick a cabinet. Only one game runs at a time — switch anytime from the dropdown.</p>
+        <hr class="hr-neon">
+
+        <div class="arcade-grid">
+          <div class="panel arcade-panel">
+            <span class="panel-corner tl" aria-hidden="true"></span>
+            <span class="panel-corner br" aria-hidden="true"></span>
+
+            <div class="game-picker">
+              <label for="gameSelect" class="game-picker-label">SELECT GAME</label>
+              <div class="game-picker-row">
+                <select id="gameSelect" class="game-select" aria-label="Choose arcade game"></select>
+                <button type="button" id="muteBtn" class="game-btn game-btn--ghost mute-btn" aria-pressed="false">SOUND: ON</button>
+              </div>
+              <p id="activeGameTitle" class="active-game-title">Neon Snake</p>
+            </div>
+
+            <div id="scoreHud" class="hud-row">
+              <div class="hud-stat">
+                <span class="label">SCORE</span>
+                <span id="score" class="value">000</span>
+              </div>
+              <div class="hud-stat">
+                <span class="label">HIGH</span>
+                <span id="highscore" class="value">000</span>
+              </div>
+            </div>
+
+            <div id="canvasGameArea" class="canvas-game-area">
+              <div class="arcade-wrap">
+                <canvas id="gameCanvas" width="400" height="400" aria-label="Arcade game canvas"></canvas>
+                <div id="gameOverlay" class="game-overlay">
+                  <h3 id="overlayTitle">GAME OVER</h3>
+                  <p id="overlayScore" class="final-score">SCORE 000</p>
+                  <button id="overlayRestart" type="button" class="game-btn game-btn--solid">PLAY AGAIN</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ============ MULTIPLAYER CHESS ============ -->
+            <div id="chessPanel" class="chess-panel hidden" aria-hidden="true">
+              <div class="chess-connection" data-chess-connection>Ready</div>
+
+              <div data-chess-lobby class="chess-lobby">
+                <p class="chess-lobby-title">MULTIPLAYER MATCH</p>
+                <p class="chess-lobby-sub">Create a room, share the code, play with a friend in real time.</p>
+
+                <label class="chess-field">
+                  <span>CALLSIGN</span>
+                  <input type="text" data-chess-name class="cyber-input" maxlength="16" placeholder="Your name" autocomplete="nickname">
+                </label>
+
+                <button type="button" class="game-btn game-btn--solid chess-full-btn" data-chess-create>
+                  CREATE ROOM
+                </button>
+
+                <div class="chess-or">OR JOIN WITH CODE</div>
+
+                <div class="chess-join-row">
+                  <input type="text" data-chess-join-code class="cyber-input chess-code-input" maxlength="8" placeholder="ROOM CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                  <button type="button" class="game-btn game-btn--solid" data-chess-join>JOIN</button>
+                </div>
+              </div>
+
+              <div data-chess-play class="chess-play hidden">
+                <div class="chess-meta">
+                  <div class="chess-room-line">
+                    <span>ROOM</span>
+                    <strong data-chess-room-display data-chess-room-code>—</strong>
+                    <button type="button" class="game-btn game-btn--ghost chess-mini-btn" data-chess-copy>COPY</button>
+                  </div>
+                  <p class="chess-you" data-chess-you>—</p>
+                  <p class="chess-turn" data-chess-turn>—</p>
+                  <p class="chess-status" data-chess-status>—</p>
+                </div>
+
+                <div class="chess-board-wrap">
+                  <div class="chess-board" data-chess-board role="grid" aria-label="Chess board"></div>
+                </div>
+
+                <div class="chess-promo hidden" data-chess-promo>
+                  <p>Promote pawn to:</p>
+                  <div class="chess-promo-row">
+                    <button type="button" class="pad-btn" data-promo="q" aria-label="Queen">♕</button>
+                    <button type="button" class="pad-btn" data-promo="r" aria-label="Rook">♖</button>
+                    <button type="button" class="pad-btn" data-promo="b" aria-label="Bishop">♗</button>
+                    <button type="button" class="pad-btn" data-promo="n" aria-label="Knight">♘</button>
+                  </div>
+                </div>
+
+                <div class="chess-actions">
+                  <button type="button" class="game-btn" data-chess-draw>DRAW</button>
+                  <button type="button" class="game-btn" data-chess-resign>RESIGN</button>
+                  <button type="button" class="game-btn game-btn--solid hidden" data-chess-rematch>REMATCH</button>
+                  <button type="button" class="game-btn game-btn--ghost" data-chess-leave>LEAVE</button>
+                </div>
+              </div>
+
+              <p class="chess-msg" data-chess-msg></p>
+            </div>
+
+            <!-- On-screen controls (phones / tablets / touch) -->
+            <div id="mobilePad" class="mobile-pad" data-layout="dpad" aria-label="Touch controls" hidden>
+              <p class="mobile-pad-label">TOUCH CONTROLS</p>
+
+              <!-- Snake: D-pad -->
+              <div class="pad-layout pad-dpad" data-for="dpad">
+                <div class="dpad">
+                  <button type="button" class="pad-btn pad-dir" data-action="up" aria-label="Up">▲</button>
+                  <button type="button" class="pad-btn pad-dir" data-action="left" aria-label="Left">◀</button>
+                  <button type="button" class="pad-btn pad-dir pad-center" data-action="action" aria-label="Pause or restart">●</button>
+                  <button type="button" class="pad-btn pad-dir" data-action="right" aria-label="Right">▶</button>
+                  <button type="button" class="pad-btn pad-dir" data-action="down" aria-label="Down">▼</button>
+                </div>
+              </div>
+
+              <!-- Pong: vertical -->
+              <div class="pad-layout pad-vertical" data-for="vertical" hidden>
+                <button type="button" class="pad-btn pad-wide" data-action="up" aria-label="Move up">▲ UP</button>
+                <button type="button" class="pad-btn pad-wide pad-action" data-action="action" aria-label="Pause or restart">ACTION</button>
+                <button type="button" class="pad-btn pad-wide" data-action="down" aria-label="Move down">▼ DOWN</button>
+              </div>
+
+              <!-- Breakout / Shooter: horizontal -->
+              <div class="pad-layout pad-horizontal" data-for="horizontal" hidden>
+                <button type="button" class="pad-btn pad-wide" data-action="left" aria-label="Move left">◀ LEFT</button>
+                <button type="button" class="pad-btn pad-wide pad-action" data-action="action" aria-label="Action">ACTION</button>
+                <button type="button" class="pad-btn pad-wide" data-action="right" aria-label="Move right">RIGHT ▶</button>
+              </div>
+
+            </div>
+
+            <div class="arcade-controls">
+              <button type="button" id="pauseBtn" class="game-btn">PAUSE</button>
+              <button type="button" id="restartBtn" class="game-btn game-btn--ghost">RESTART</button>
+            </div>
+            <p id="controlsHint" class="controls-hint">Arrow keys / WASD / swipe · Space to pause</p>
+            <p id="hofNote" class="hof-note">Snake scores can enter the live Hall of Fame (top 10).</p>
+          </div>
+
+          <div class="panel hof-panel">
+            <span class="panel-corner tl" aria-hidden="true"></span>
+            <span class="panel-corner br" aria-hidden="true"></span>
+
+            <p class="section-kicker" style="margin-bottom:0.35rem">LIVE DATABASE</p>
+            <h2 class="section-title neon-text" style="font-size:1.55rem;margin-bottom:1rem">HALL OF FAME</h2>
+            <p id="hofSub" class="hof-sub">Neon Snake · top 10 · SQLite database</p>
+
+            <div class="leaderboard-shell">
+              <div class="leaderboard-head">
+                <span>#</span>
+                <span>PILOT</span>
+                <span>PTS</span>
+                <span>DATE</span>
+              </div>
+              <div id="leaderboard">
+                <div class="leaderboard-empty">
+                  <div class="icon">🏆</div>
+                  <p>Loading scores...</p>
+                </div>
+              </div>
+            </div>
+            <p id="leaderboardStatus" class="leaderboard-status">Connecting...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="contact" class="section contact-section">
+      <div class="shell">
+        <p class="section-kicker" style="text-align:center;justify-content:center;display:flex">05 // PARTY</p>
+        <h2 class="section-title neon-text" style="text-align:center">READY TO TEAM UP?</h2>
+        <p class="section-sub" style="text-align:center">Ping me on any channel. Co-op mode always welcome.</p>
+
+        <div class="social-row">
+          <a href="https://github.com/hafilrazz" target="_blank" rel="noopener noreferrer" class="game-btn game-btn--icon" aria-label="GitHub">
+            <i class="fab fa-github"></i>
+          </a>
+          <a href="https://www.linkedin.com/in/hafilrazz" target="_blank" rel="noopener noreferrer" class="game-btn game-btn--icon" aria-label="LinkedIn">
+            <i class="fab fa-linkedin"></i>
+          </a>
+          <a href="https://www.instagram.com/hafilrazz" target="_blank" rel="noopener noreferrer" class="game-btn game-btn--icon" aria-label="Instagram">
+            <i class="fab fa-instagram"></i>
+          </a>
+        </div>
+
+        <p class="footer-note">© <span id="year"></span> HAFIL RAZAK — GAME OVER? INSERT COIN TO CONTINUE.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
