@@ -71,6 +71,24 @@ def init_db() -> None:
             """
         )
 
+        # Public site-wide chat (no rooms / no codes)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                body TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_chat_created
+            ON chat_messages (id DESC)
+            """
+        )
+
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     game = row["game"] if "game" in row.keys() else DEFAULT_GAME
@@ -178,3 +196,84 @@ def add_score(name: str, score: int, game: str = DEFAULT_GAME) -> dict[str, Any]
 
 def list_games() -> list[str]:
     return sorted(VALID_GAMES)
+
+
+# ---------------------------------------------------------------------------
+# Public chatroom
+# ---------------------------------------------------------------------------
+
+MAX_CHAT_LEN = 280
+CHAT_LIMIT = 80
+
+
+def _chat_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "body": row["body"],
+        "time": row["created_at"][11:16] if len(row["created_at"]) >= 16 else row["created_at"],
+        "date": row["created_at"][:10],
+    }
+
+
+def get_chat_messages(limit: int = CHAT_LIMIT, after_id: int = 0) -> list[dict[str, Any]]:
+    limit = max(1, min(int(limit), 200))
+    with get_db() as conn:
+        if after_id > 0:
+            rows = conn.execute(
+                """
+                SELECT id, name, body, created_at
+                FROM chat_messages
+                WHERE id > ?
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (after_id, limit),
+            ).fetchall()
+            return [_chat_row(r) for r in rows]
+
+        rows = conn.execute(
+            """
+            SELECT id, name, body, created_at
+            FROM chat_messages
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    # oldest → newest for display
+    return [_chat_row(r) for r in reversed(rows)]
+
+
+def add_chat_message(name: str, body: str) -> dict[str, Any]:
+    player = sanitize_name(name)
+    text = " ".join((body or "").strip().split())
+    text = "".join(ch for ch in text if ch.isprintable())
+    if not text:
+        raise ValueError("Message cannot be empty")
+    if len(text) > MAX_CHAT_LEN:
+        raise ValueError(f"Message too long (max {MAX_CHAT_LEN} characters)")
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    with get_db() as conn:
+        cur = conn.execute(
+            "INSERT INTO chat_messages (name, body, created_at) VALUES (?, ?, ?)",
+            (player, text, now),
+        )
+        msg_id = cur.lastrowid
+        # Keep table from growing forever
+        conn.execute(
+            """
+            DELETE FROM chat_messages
+            WHERE id NOT IN (
+                SELECT id FROM (
+                    SELECT id FROM chat_messages ORDER BY id DESC LIMIT 500
+                )
+            )
+            """
+        )
+        row = conn.execute(
+            "SELECT id, name, body, created_at FROM chat_messages WHERE id = ?",
+            (msg_id,),
+        ).fetchone()
+    return _chat_row(row)

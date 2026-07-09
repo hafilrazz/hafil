@@ -321,25 +321,54 @@ body.perf-lite .card-glow:hover {
 .game-btn--icon {
   width: 3.25rem;
   height: 3.25rem;
+  min-width: 3.25rem;
   padding: 0;
   border-radius: 1rem;
   font-size: 1.25rem;
 }
 
+/* Social icons — standalone (not .game-btn) so mobile width:100% never breaks them */
 .social-logo {
-  width: 3.5rem;
-  height: 3.5rem;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem !important;
+  height: 3.5rem !important;
+  min-width: 3.5rem !important;
+  max-width: 3.5rem !important;
+  padding: 0 !important;
+  flex: 0 0 3.5rem !important;
+  border-radius: 1rem;
+  border: 2px solid var(--border-strong);
+  background: rgba(8, 12, 14, 0.95);
+  color: #00ff9f;
+  box-sizing: border-box;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  overflow: visible;
 }
 
-.social-svg {
-  width: 1.45rem;
-  height: 1.45rem;
+.social-logo svg {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px;
+  min-height: 28px;
   display: block;
   flex-shrink: 0;
+  pointer-events: none;
 }
 
-.social-logo:hover .social-svg {
-  filter: drop-shadow(0 0 6px rgba(0, 255, 159, 0.55));
+.social-logo:hover,
+.social-logo:focus-visible {
+  border-color: #fff;
+  background: rgba(0, 255, 159, 0.12);
+  box-shadow: 0 0 18px rgba(0, 255, 159, 0.3);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.social-logo:active {
+  transform: scale(0.96);
 }
 
 /* ========== Layout shells ========== */
@@ -1730,6 +1759,166 @@ canvas {
 .medal-2 { color: var(--silver); text-shadow: 0 0 10px rgba(200, 208, 216, 0.35); }
 .medal-3 { color: var(--bronze); text-shadow: 0 0 10px rgba(205, 127, 50, 0.4); }
 
+/* ========== Public chat ========== */
+.chat-panel {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.35rem 1.2rem 1.1rem;
+}
+
+.chat-name-gate {
+  text-align: center;
+}
+
+.chat-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+  margin: 0 0 0.75rem;
+}
+
+.chat-name-row {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.chat-name-row .cyber-input {
+  flex: 1 1 12rem;
+  max-width: 18rem;
+}
+
+.chat-hint {
+  margin: 0.85rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  line-height: 1.45;
+}
+
+.chat-main.hidden,
+.chat-name-gate.hidden {
+  display: none !important;
+}
+
+.chat-who {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.chat-who strong {
+  color: var(--neon);
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+}
+
+.chat-link-btn {
+  background: none;
+  border: 0;
+  color: var(--text-faint);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0;
+}
+
+.chat-link-btn:hover {
+  color: var(--neon);
+}
+
+.chat-log {
+  height: min(360px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chat-empty {
+  margin: auto;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  padding: 1.5rem 0.5rem;
+}
+
+.chat-msg {
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(0, 255, 159, 0.05);
+  border: 1px solid rgba(0, 255, 159, 0.12);
+  max-width: 92%;
+}
+
+.chat-msg.is-mine {
+  align-self: flex-end;
+  background: rgba(0, 255, 159, 0.12);
+  border-color: rgba(0, 255, 159, 0.28);
+}
+
+.chat-msg-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.7rem;
+}
+
+.chat-msg-name {
+  color: var(--neon);
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+}
+
+.chat-msg-time {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.chat-msg-body {
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.chat-form {
+  display: flex;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.chat-form .cyber-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.chat-status {
+  margin: 0.55rem 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.chat-status.is-error {
+  color: var(--danger);
+}
+
 /* ========== Contact / footer ========== */
 .contact-section {
   text-align: center;
@@ -1740,9 +1929,10 @@ canvas {
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1.1rem;
+  flex-wrap: nowrap;
+  gap: 1.15rem;
   margin: 2rem 0 1.75rem;
+  width: 100%;
 }
 
 .footer-note {
@@ -2106,8 +2296,18 @@ canvas {
     flex-direction: column;
   }
 
-  .game-btn {
+  .game-btn:not(.game-btn--icon) {
     width: 100%;
+  }
+
+  /* Never stretch social icons on phones */
+  .social-logo,
+  a.social-logo {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    min-width: 3.5rem !important;
+    max-width: 3.5rem !important;
+    flex: 0 0 3.5rem !important;
   }
 
   .nav-links a {

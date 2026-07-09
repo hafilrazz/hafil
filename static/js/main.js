@@ -152,4 +152,36 @@ document.addEventListener("DOMContentLoaded", () => {
   initYear();
   initSmoothAnchors();
   scheduleArcadeLoad();
+  // Chat: load soon so join/send always works after gate
+  let chatBooted = false;
+  const bootChat = () => {
+    if (chatBooted) return;
+    chatBooted = true;
+    import("./chat.js")
+      .then((m) => m.initChat())
+      .catch((e) => {
+        chatBooted = false;
+        console.error("chat load failed", e);
+      });
+  };
+  // Eager-ish: after short delay (user has usually passed gate by then)
+  setTimeout(bootChat, 600);
+  document.querySelector('a[href="#chat"]')?.addEventListener(
+    "click",
+    () => bootChat(),
+    { passive: true }
+  );
+  const chatSection = document.getElementById("chat");
+  if (chatSection && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          bootChat();
+          io.disconnect();
+        }
+      },
+      { rootMargin: "240px 0px", threshold: 0.01 }
+    );
+    io.observe(chatSection);
+  }
 });

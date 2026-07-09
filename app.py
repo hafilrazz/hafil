@@ -201,6 +201,38 @@ def submit_score():
     return jsonify(result), 201 if result["made_board"] else 200
 
 
+# ---------------------------------------------------------------------------
+# Public chatroom (everyone on the site)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/chat")
+def chat_list():
+    try:
+        after = int(request.args.get("after", 0))
+    except (TypeError, ValueError):
+        after = 0
+    messages = db.get_chat_messages(after_id=after)
+    return jsonify({"messages": messages})
+
+
+@app.post("/api/chat")
+def chat_post():
+    payload = request.get_json(silent=True) or {}
+    name = payload.get("name", "")
+    body = payload.get("body") or payload.get("message") or ""
+    try:
+        msg = db.add_chat_message(str(name), str(body))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    # Live push to everyone currently connected
+    try:
+        socketio.emit("chat:message", msg)
+    except Exception:
+        pass
+    return jsonify({"message": msg}), 201
+
+
 @app.errorhandler(404)
 def not_found(_err):
     if request.path.startswith("/api/"):
