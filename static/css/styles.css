@@ -852,6 +852,21 @@ img {
   align-items: start;
 }
 
+/* Chess: single full-width column, no hall of fame */
+.arcade-grid.is-chess {
+  grid-template-columns: 1fr;
+}
+
+.arcade-grid.is-chess .arcade-panel {
+  max-width: min(720px, 100%);
+  margin-inline: auto;
+  width: 100%;
+}
+
+.hof-panel.hidden {
+  display: none !important;
+}
+
 .arcade-panel,
 .hof-panel {
   padding: 1.35rem;
@@ -1233,17 +1248,20 @@ canvas {
 }
 
 .chess-board-wrap {
+  /* Perfect square container that fills available width */
   width: 100%;
-  max-width: min(420px, 100%);
-  margin: 0 auto;
+  max-width: min(100%, 680px, 85vmin);
+  margin: 0.5rem auto 0;
+  aspect-ratio: 1 / 1;
   touch-action: manipulation;
 }
 
 .chess-board {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 100%;
   border: 2px solid var(--border-strong);
   border-radius: 10px;
   overflow: hidden;
@@ -1263,8 +1281,13 @@ canvas {
   border: 0;
   padding: 0;
   margin: 0;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
+  /* Force equal square cells inside the grid */
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1312,10 +1335,20 @@ canvas {
 }
 
 .chess-piece {
-  font-size: clamp(1.35rem, 5.5vw, 2.15rem);
+  /* Scale with square size so every cell looks even */
+  font-size: clamp(1.25rem, 7.5vmin, 2.6rem);
   line-height: 1;
+  width: 1em;
+  height: 1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+}
+
+#arcade.chess-mode .controls-hint {
+  display: none;
 }
 
 .chess-piece.is-white {

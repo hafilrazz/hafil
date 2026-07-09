@@ -103,10 +103,11 @@ draw / resign / rematch are there too.
    ```
    pip install -r requirements.txt
    ```
-4. start command:
+4. start command (important — use this exact line):
    ```
-   gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app
+   python app.py
    ```
+   dont use gunicorn eventlet worker, newer gunicorn broke that.
 5. env vars:
    - `SECRET_KEY` = random long string
    - `FLASK_ENV` = `production`

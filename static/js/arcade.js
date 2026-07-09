@@ -65,6 +65,8 @@ export function initArcade() {
   const canvasGameArea = document.getElementById("canvasGameArea");
   const chessPanel = document.getElementById("chessPanel");
   const classicControls = document.querySelector(".arcade-controls");
+  const hofPanel = document.querySelector(".hof-panel");
+  const arcadeGrid = document.querySelector(".arcade-grid");
 
   const modal = document.getElementById("scoreModal");
   const nameInput = document.getElementById("playerName");
@@ -162,6 +164,11 @@ export function initArcade() {
     canvasGameArea?.classList.toggle("hidden", chess);
     scoreHud?.classList.toggle("hidden", chess);
     classicControls?.classList.toggle("hidden", chess);
+    // Chess uses full width — no leaderboard panel
+    hofPanel?.classList.toggle("hidden", chess);
+    arcadeGrid?.classList.toggle("is-chess", chess);
+    document.getElementById("arcade")?.classList.toggle("chess-mode", chess);
+    if (hofNote) hofNote.classList.toggle("hidden", chess);
     if (!chess) {
       chessPanel?.classList.add("hidden");
       chessPanel?.setAttribute("aria-hidden", "true");
@@ -209,16 +216,6 @@ export function initArcade() {
       showMobilePad(false);
       instance = buildInstance(def);
       instance.start();
-      setLeaderboardStatus("Chess multiplayer — no scoreboard (win at the board)");
-      // clear hall list message for chess
-      const lb = document.getElementById("leaderboard");
-      if (lb) {
-        lb.innerHTML = `
-          <div class="leaderboard-empty">
-            <div class="icon">♟️</div>
-            <p>Create a room code.<br>Share it so a friend can join and play.</p>
-          </div>`;
-      }
     } else {
       const high = loadHigh(HIGH_KEYS[def.id] || `${def.id}HighScore`);
       hud.setScore(0);

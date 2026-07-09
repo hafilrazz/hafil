@@ -3,6 +3,35 @@
 from __future__ import annotations
 
 import os
+import socket
+import sys
+
+# ---------------------------------------------------------------------------
+# Async mode
+# - Windows local: threading (eventlet is deprecated + flaky on Win)
+# - Linux / Render: eventlet (monkey_patch before other imports)
+# Override anytime: SOCKETIO_ASYNC_MODE=threading|eventlet
+# ---------------------------------------------------------------------------
+_async = os.environ.get("SOCKETIO_ASYNC_MODE", "").strip().lower()
+if _async not in ("threading", "eventlet", "gevent"):
+    if sys.platform == "win32":
+        _async = "threading"
+    else:
+        try:
+            import eventlet
+
+            eventlet.monkey_patch()
+            _async = "eventlet"
+        except ImportError:
+            _async = "threading"
+elif _async == "eventlet":
+    try:
+        import eventlet
+
+        eventlet.monkey_patch()
+    except ImportError:
+        _async = "threading"
+
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,26 +45,17 @@ from chess_rooms import manager as chess_manager
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 
-IS_PROD = os.environ.get("FLASK_ENV", "").lower() == "production" or os.environ.get(
-    "RENDER"
-) or os.environ.get("RAILWAY_ENVIRONMENT")
+IS_PROD = bool(
+    os.environ.get("FLASK_ENV", "").lower() == "production"
+    or os.environ.get("RENDER")
+    or os.environ.get("RAILWAY_ENVIRONMENT")
+)
 
 app = Flask(__name__, static_folder=str(STATIC), static_url_path="/static")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "hafil-arcade-dev-change-me")
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 60 * 60 * 24 * 7  # 7 days static default
 
-# CORS: open in dev; same-origin enough for production same host
 CORS(app, resources={r"/api/*": {"origins": os.environ.get("CORS_ORIGINS", "*")}})
-
-# Prefer eventlet in production if installed; fall back to threading (Windows/dev)
-_async = os.environ.get("SOCKETIO_ASYNC_MODE")
-if not _async:
-    try:
-        import eventlet  # noqa: F401
-
-        _async = "eventlet"
-    except ImportError:
-        _async = "threading"
 
 socketio = SocketIO(
     app,
@@ -45,7 +65,6 @@ socketio = SocketIO(
     engineio_logger=False,
     ping_timeout=60,
     ping_interval=25,
-    # Slightly lower max HTTP buffer for mobile clients
     max_http_buffer_size=1_000_000,
 )
 
@@ -335,14 +354,47 @@ def on_sync(_data=None):
         emit("chess:error", {"error": "Not in a room."})
 
 
+def _port_free(host: str, port: int) -> bool:
+    """Return True if we can bind this host/port."""
+    family = socket.AF_INET6 if ":" in host and host != "0.0.0.0" else socket.AF_INET
+    # For 0.0.0.0 just probe IPv4
+    if host in ("0.0.0.0", "::"):
+        family = socket.AF_INET
+        probe_host = "127.0.0.1"
+    else:
+        probe_host = host
+    s = socket.socket(family, socket.SOCK_STREAM)
+    try:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((probe_host if host == "0.0.0.0" else host, port))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
 def main():
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "5000"))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1" and not IS_PROD
 
+    if not _port_free(host, port):
+        print(f"ERROR: port {port} is already in use.")
+        print("Close the other server or pick another port, e.g.:")
+        print(f"  set PORT=5001")
+        print(f"  python app.py")
+        if sys.platform == "win32":
+            print()
+            print("To find/kill whatever is on that port (PowerShell):")
+            print(f"  Get-NetTCPConnection -LocalPort {port} | Select OwningProcess")
+            print(f"  Stop-Process -Id <PID> -Force")
+        sys.exit(1)
+
     print("Hall of Fame DB:", db.DB_PATH)
     print("Games:", ", ".join(db.list_games()))
     print("Socket.IO async_mode:", _async)
+    print("Production:", IS_PROD)
     print(f"Open http://127.0.0.1:{port}")
     socketio.run(
         app,
@@ -351,8 +403,10 @@ def main():
         debug=debug,
         use_reloader=False,
         allow_unsafe_werkzeug=True,
+        log_output=True,
     )
 
 
 if __name__ == "__main__":
     main()
+

@@ -115,8 +115,12 @@ Refresh your repo page. You should see `app.py`, `static/`, `requirements.txt`, 
 | **Branch** | `main` |
 | **Root Directory** | *(leave empty)* |
 | **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app` |
+| **Start Command** | `python app.py` |
 | **Instance type** | **Free** |
+
+> **Note:** Do **not** use `gunicorn --worker-class eventlet` — Gunicorn 26+ no longer
+> includes that worker, which causes deploy crash. This app starts with `python app.py`
+> and uses **eventlet** through Flask-SocketIO (reads `$PORT` on Render automatically).
 
 ### 3.3 Environment variables
 
@@ -225,6 +229,7 @@ On your phone (same Wi‑Fi), use your PC’s LAN IP, e.g. `http://192.168.x.x:5
 | `git` not recognized | Install Git, restart PowerShell |
 | `git push` auth failed | Use a Personal Access Token, not your GitHub password |
 | Render build fails | Check logs; ensure `requirements.txt` is at repo root |
+| `eventlet` worker not found | Start command must be `python app.py` (not gunicorn -k eventlet) |
 | Site 502 / spinning | Wait for cold start; open `/api/health` |
 | Chess “connection error” | Both users must use the Render HTTPS URL, not `file://` or localhost vs public mix |
 | Styles/JS old | Hard refresh: Ctrl+F5 |
@@ -247,7 +252,7 @@ Should return JSON like `{"ok": true, ...}`.
 | Deploy only with **GitHub Pages** | No Python / sockets / DB |
 | Open `static/index.html` as a file online | API and chess will fail |
 | Commit `.env` or `.venv` | Secrets + huge junk (already in `.gitignore`) |
-| Use 2+ Gunicorn workers with this chess setup | In-memory rooms won’t share; keep **`-w 1`** |
+| Start with `gunicorn -k eventlet` | Broken on Gunicorn 26+; use `python app.py` |
 
 ---
 
